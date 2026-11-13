@@ -582,18 +582,27 @@
         </div>
         <button class="check-btn" id="cardioCheckBtn" onclick="toggleCardio()">✓</button>
       </div>
-      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:12px;">
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:12px; align-items:end;">
         <div>
-          <label>Gerät</label>
-          <select id="cardioDevice" style="margin-bottom:0;">
+          <label style="display:block; margin-bottom:6px;">Gerät</label>
+          <select id="cardioDevice" style="margin:0;">
             <option value="Synchro (Crosstrainer)">Synchro (Crosstrainer)</option>
             <option value="Skillrow">Skillrow</option>
             <option value="Treadmill (5–8% Steigung)">Treadmill (5–8% Steigung)</option>
           </select>
         </div>
         <div>
-          <label>Dauer (Minuten)</label>
-          <input type="number" id="cardioMinutes" value="15" min="1" max="120" style="margin-bottom:0;" />
+          <label style="display:block; margin-bottom:6px;">Dauer</label>
+          <div class="stepper" style="margin:0; border: 1px solid var(--border);">
+            <button onclick="adjustCardio(-1)">−</button>
+            <div class="stepper-input-wrap">
+              <div class="stepper-input-row">
+                <input type="number" step="1" min="1" class="stepper-input" id="cardioMinutes" value="15" />
+                <span class="stepper-unit">Min</span>
+              </div>
+            </div>
+            <button onclick="adjustCardio(1)">+</button>
+          </div>
         </div>
       </div>
     </div>
@@ -1199,6 +1208,12 @@
   function toggleCardio() {
     activeSession.cardioDone = !activeSession.cardioDone;
     renderWorkout();
+  }
+
+  function adjustCardio(delta) {
+    const input = document.getElementById("cardioMinutes");
+    let val = parseInt(input.value) || 15;
+    input.value = Math.max(1, val + delta);
   }
 
   // --- TRAINING ABSCHLIESSEN (NUR GEWICHTE SPEICHERN, KEINE EINSTELLUNGEN) ---
