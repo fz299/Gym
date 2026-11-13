@@ -1038,6 +1038,7 @@
 
   // --- PERSISTENCE (LOKAL + FIREBASE REST API) ---
   async function saveData() {
+    appData.lastUpdated = Date.now();
     localStorage.setItem("rac_gym_data", JSON.stringify(appData));
     if (firebaseUrl) {
       try {
@@ -1075,8 +1076,11 @@
             exercises: cloudData.exercises,
             customDefault: cloudData.customDefault || null,
             history: cloudData.history || [],
-            activeSession: cloudData.activeSession || { warmupDone: false, cardioDone: false, exerciseDone: {}, setsState: {} }
+            activeSession: cloudData.activeSession || { warmupDone: false, cardioDone: false, exerciseDone: {}, setsState: {} },
+            lastUpdated: cloudData.lastUpdated || Date.now()
           };
+          if (!appData.activeSession.exerciseDone) appData.activeSession.exerciseDone = {};
+          if (!appData.activeSession.setsState) appData.activeSession.setsState = {};
           localStorage.setItem("rac_gym_data", JSON.stringify(appData));
         } else {
           if (cloudData && Array.isArray(cloudData.history)) {
@@ -1168,7 +1172,7 @@
     listEl.innerHTML = "";
 
     appData.exercises.forEach((ex, idx) => {
-      const sets = appData.activeSession.setsState[ex.id] || [];
+      const sets = (appData.activeSession.setsState && appData.activeSession.setsState[ex.id]) ? appData.activeSession.setsState[ex.id] : [];
       const isExDone = sets.length > 0 && sets.every(s => s.done);
       const lastLog = getLastExerciseLog(ex.id);
       const lastText = lastLog
@@ -1233,6 +1237,7 @@
   }
 
   async function adjustSet(exId, setIdx, field, delta) {
+    if (!appData.activeSession.setsState || !appData.activeSession.setsState[exId]) return;
     const s = appData.activeSession.setsState[exId][setIdx];
     s[field] = Math.max(0, +(s[field] + delta).toFixed(1));
     renderWorkout();
@@ -1240,6 +1245,7 @@
   }
 
   async function setDirectValue(exId, setIdx, field, rawVal) {
+    if (!appData.activeSession.setsState || !appData.activeSession.setsState[exId]) return;
     const parsed = parseFloat(rawVal);
     if (!isNaN(parsed) && parsed >= 0) {
       appData.activeSession.setsState[exId][setIdx][field] = +parsed.toFixed(1);
@@ -1249,6 +1255,7 @@
   }
 
   async function copyFirstSetToAll(exId) {
+    if (!appData.activeSession.setsState) return;
     const sets = appData.activeSession.setsState[exId];
     if (!sets || sets.length < 2) return;
     const first = sets[0];
@@ -1261,6 +1268,7 @@
   }
 
   async function toggleSetDone(exId, setIdx) {
+    if (!appData.activeSession.setsState || !appData.activeSession.setsState[exId]) return;
     appData.activeSession.setsState[exId][setIdx].done = !appData.activeSession.setsState[exId][setIdx].done;
     renderWorkout();
     await saveData();
@@ -1659,10 +1667,15 @@
       if (res.ok) {
         const cloudData = await res.json();
         if (cloudData && Array.isArray(cloudData.exercises)) {
-          // Verify if cloud is different from local
-          if (JSON.stringify(cloudData) !== JSON.stringify(appData)) {
+          // Verify if cloud is newer than local
+          if (cloudData.lastUpdated && (!appData.lastUpdated || cloudData.lastUpdated > appData.lastUpdated)) {
             appData = cloudData;
+            if (!appData.history) appData.history = [];
             if (!appData.activeSession) appData.activeSession = { warmupDone: false, cardioDone: false, exerciseDone: {}, setsState: {} };
+            if (!appData.activeSession.exerciseDone) appData.activeSession.exerciseDone = {};
+            if (!appData.activeSession.setsState) appData.activeSession.setsState = {};
+            
+            initActiveSession();
             localStorage.setItem("rac_gym_data", JSON.stringify(appData));
             renderAll();
           }
