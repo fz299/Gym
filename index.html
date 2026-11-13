@@ -543,6 +543,7 @@
       margin-bottom: 10px;
     }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
@@ -719,6 +720,11 @@
       <select id="historyFilter" onchange="renderHistory()" style="margin-bottom:0;">
         <option value="ALL">Alle absolvierten Trainings anzeigen</option>
       </select>
+    </div>
+    
+    <div class="card" id="chartCard" style="display:none; padding:12px;">
+      <div style="font-size:0.85rem; font-weight:700; color:var(--text-muted); margin-bottom:8px; text-align:center;">Gewichts-Trend (Max. kg)</div>
+      <canvas id="trendCanvas" style="width:100%; max-height:220px;"></canvas>
     </div>
 
     <div id="historyList"></div>
@@ -1545,6 +1551,7 @@
   }
 
   // --- HISTORIE RENDERING (NUR GEWICHTE) ---
+  let trendChart = null;
   function renderHistory() {
     const filterEl = document.getElementById("historyFilter");
     const currentFilter = filterEl.value;
@@ -1564,6 +1571,70 @@
 
     const listEl = document.getElementById("historyList");
     listEl.innerHTML = "";
+    
+    const chartCard = document.getElementById("chartCard");
+    if (currentFilter === "ALL" || appData.history.length === 0) {
+      chartCard.style.display = "none";
+    } else {
+      chartCard.style.display = "block";
+      
+      const dates = [];
+      const weights = [];
+      
+      // Für den Chart chronologisch sortieren (älteste zuerst)
+      const chronological = [...appData.history].reverse();
+      
+      chronological.forEach(session => {
+        const log = session.logs.find(l => l.exerciseId === currentFilter);
+        if (log && log.sets && log.sets.length > 0) {
+          // Datum ohne Uhrzeit
+          dates.push(session.date.split(" ")[0]);
+          // Maximales Gewicht des Tages
+          const maxW = Math.max(...log.sets.map(s => s.weight));
+          weights.push(maxW);
+        }
+      });
+      
+      if (trendChart) trendChart.destroy();
+      
+      const ctx = document.getElementById("trendCanvas").getContext("2d");
+      trendChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: dates,
+          datasets: [{
+            label: 'Maximalgewicht (kg)',
+            data: weights,
+            borderColor: '#64b5f6',
+            backgroundColor: 'rgba(100, 181, 246, 0.15)',
+            borderWidth: 2.5,
+            pointBackgroundColor: '#1976d2',
+            pointBorderColor: '#64b5f6',
+            pointRadius: 4,
+            fill: true,
+            tension: 0.3
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            y: {
+              beginAtZero: false,
+              grid: { color: 'rgba(255, 255, 255, 0.05)' },
+              ticks: { color: '#94a3b8', font: { size: 10 } }
+            },
+            x: {
+              grid: { display: false },
+              ticks: { color: '#94a3b8', font: { size: 10 }, maxRotation: 45 }
+            }
+          }
+        }
+      });
+    }
 
     if (appData.history.length === 0) {
       listEl.innerHTML = `<div class="card"><div class="muscle-tag">Noch keine Trainings gespeichert. Schließe dein erstes Workout im Reiter „Training“ ab!</div></div>`;
@@ -1593,13 +1664,53 @@
       card.innerHTML = `
         <div class="flex-between" style="margin-bottom:8px;">
           <div style="font-weight:800; color:#4ade80;">📅 ${session.date}</div>
-          <button class="btn btn-sm btn-danger" onclick="deleteHistoryEntry('${session.id}')">Löschen</button>
+          <div style="display:flex; gap:6px;">
+            <button class="btn btn-sm btn-blue" onclick="saveHistoryAsDefault('${session.id}')" title="Gewichte dieses Trainings als neuen Standard speichern">Als Default</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteHistoryEntry('${session.id}')">Löschen</button>
+          </div>
         </div>
         ${session.cardio && currentFilter === "ALL" ? `<div class="muscle-tag" style="margin-bottom:8px;">🏃 Cardio: ${session.cardio}</div>` : ""}
         ${logsHtml}
       `;
       listEl.appendChild(card);
     });
+  }
+
+  async function saveHistoryAsDefault(sessionId) {
+    if (!confirm("Möchtest du die Gewichte und Wiederholungen aus diesem Training als deinen neuen Standardplan (Default) speichern?")) return;
+    
+    const session = appData.history.find(h => h.id === sessionId);
+    if (!session) return;
+
+    // Apply weights to current exercises
+    session.logs.forEach(log => {
+      const ex = appData.exercises.find(e => e.id === log.exerciseId);
+      if (ex && log.sets && log.sets.length > 0) {
+        // We take the values from the first set of that log
+        ex.defaultWeight = log.sets[0].weight;
+        ex.defaultReps = log.sets[0].reps;
+      }
+    });
+
+    const now = new Date();
+    const savedAt = now.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })
+      + " " + now.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+
+    appData.customDefault = {
+      savedAt: savedAt,
+      warmupDevice: appData.warmupDevice,
+      warmupLevel: appData.warmupLevel,
+      warmupMinutes: appData.warmupMinutes,
+      exercises: JSON.parse(JSON.stringify(appData.exercises))
+    };
+
+    // Re-init active session to immediately reflect new default weights
+    appData.activeSession = { warmupDone: false, cardioDone: false, exerciseDone: {}, setsState: {} };
+    initActiveSession();
+    
+    await saveData();
+    renderAll();
+    alert("Erfolgreich! Die Gewichte aus diesem Training sind jetzt dein neuer Standard.");
   }
 
   async function deleteHistoryEntry(id) {
