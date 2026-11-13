@@ -1,0 +1,1172 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>RAC Gym Tracker – Dynamischer Trainingsplan</title>
+  <style>
+    :root {
+      --bg-body: #11161d;
+      --bg-card: #1e2630;
+      --bg-card-hover: #252f3c;
+      --bg-input: #141a21;
+      --accent: #2e7d32;
+      --accent-hover: #388e3c;
+      --accent-soft: rgba(46, 125, 50, 0.2);
+      --blue: #1976d2;
+      --danger: #d32f2f;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --border: #2e3a48;
+      --radius: 14px;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg-body);
+      color: var(--text-main);
+      padding-bottom: 90px;
+    }
+
+    /* Header */
+    header {
+      background: linear-gradient(135deg, #1b5e20, #2e7d32);
+      padding: 16px 18px;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 1.2rem;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+    }
+
+    header .subtitle {
+      font-size: 0.78rem;
+      opacity: 0.9;
+      margin-top: 2px;
+    }
+
+    .sync-badge {
+      font-size: 0.72rem;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 5px 10px;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+    }
+
+    .sync-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: #fbbf24;
+    }
+
+    .sync-dot.online {
+      background-color: #4ade80;
+    }
+
+    /* Container */
+    .container {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+
+    /* Tabs */
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+
+    /* Cards */
+    .card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 14px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+    }
+
+    .card.completed {
+      border-color: var(--accent);
+      background: linear-gradient(180deg, rgba(46, 125, 50, 0.14), var(--bg-card));
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .exercise-title {
+      font-size: 1.08rem;
+      font-weight: 700;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .muscle-tag {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin-top: 3px;
+    }
+
+    .setting-badge {
+      display: inline-block;
+      margin-top: 6px;
+      background: rgba(25, 118, 210, 0.18);
+      color: #64b5f6;
+      border: 1px solid rgba(25, 118, 210, 0.35);
+      padding: 3px 9px;
+      border-radius: 8px;
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+
+    .last-perf {
+      font-size: 0.78rem;
+      color: #a5d6a7;
+      margin-top: 6px;
+    }
+
+    /* Controls / Buttons */
+    .btn {
+      border: none;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      color: #fff;
+      background: var(--bg-card-hover);
+      transition: transform 0.08s ease, background 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .btn:active {
+      transform: scale(0.97);
+    }
+
+    .btn-primary {
+      background: var(--accent);
+    }
+    .btn-primary:hover {
+      background: var(--accent-hover);
+    }
+
+    .btn-blue {
+      background: var(--blue);
+    }
+
+    .btn-danger {
+      background: var(--danger);
+    }
+
+    .btn-sm {
+      padding: 6px 10px;
+      font-size: 0.8rem;
+      border-radius: 8px;
+    }
+
+    .btn-icon {
+      width: 34px;
+      height: 34px;
+      padding: 0;
+      font-size: 1rem;
+    }
+
+    /* Set Rows */
+    .sets-container {
+      margin-top: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .set-row {
+      display: grid;
+      grid-template-columns: 32px 1fr 1fr 44px;
+      gap: 8px;
+      align-items: center;
+      background: var(--bg-input);
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+    }
+
+    .set-row.done {
+      border-color: var(--accent);
+      background: rgba(46, 125, 50, 0.15);
+    }
+
+    .set-num {
+      font-weight: 700;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      text-align: center;
+    }
+
+    .stepper {
+      display: flex;
+      align-items: center;
+      background: var(--bg-card);
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    .stepper button {
+      background: transparent;
+      border: none;
+      color: var(--text-main);
+      font-size: 1.15rem;
+      font-weight: 700;
+      width: 34px;
+      height: 36px;
+      cursor: pointer;
+    }
+
+    .stepper button:active {
+      background: var(--bg-card-hover);
+    }
+
+    .stepper-val {
+      flex: 1;
+      text-align: center;
+      font-size: 0.88rem;
+      font-weight: 700;
+      min-width: 48px;
+    }
+
+    .stepper-val span {
+      display: block;
+      font-size: 0.65rem;
+      font-weight: 400;
+      color: var(--text-muted);
+    }
+
+    .check-btn {
+      width: 40px;
+      height: 36px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      color: var(--text-muted);
+      font-size: 1.1rem;
+      cursor: pointer;
+    }
+
+    .check-btn.checked {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    /* Timer Bar */
+    .timer-bar {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      margin-bottom: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .timer-display {
+      font-size: 1.35rem;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      color: #64b5f6;
+    }
+
+    /* Inputs & Modals */
+    input, select {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--bg-input);
+      color: var(--text-main);
+      font-size: 0.95rem;
+      margin-top: 4px;
+      margin-bottom: 12px;
+    }
+
+    label {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 16px;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      width: 100%;
+      max-width: 460px;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .modal h2 {
+      margin-top: 0;
+      font-size: 1.15rem;
+    }
+
+    /* Bottom Navigation */
+    nav.bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #161c24;
+      border-top: 1px solid var(--border);
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      height: 68px;
+      z-index: 50;
+    }
+
+    .nav-item {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .nav-item.active {
+      color: #4ade80;
+    }
+
+    .nav-item span.icon {
+      font-size: 1.25rem;
+    }
+
+    /* History & Stats */
+    .history-entry {
+      border-bottom: 1px solid var(--border);
+      padding: 10px 0;
+    }
+    .history-entry:last-child {
+      border-bottom: none;
+    }
+
+    .pill-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 6px;
+    }
+
+    .pill {
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      padding: 4px 9px;
+      border-radius: 8px;
+      font-size: 0.78rem;
+    }
+
+    .flex-between {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>RAC Gym Tracker</h1>
+    <div class="subtitle">Dynamischer Trainingsplan & Gewichts-Historie</div>
+  </div>
+  <div class="sync-badge" onclick="openSettingsModal()">
+    <div class="sync-dot" id="syncDot"></div>
+    <span id="syncText">Lokal</span>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- TAB 1: AKTIVES TRAINING -->
+  <div id="tab-workout" class="tab-content active">
+
+    <!-- Pausen-Timer -->
+    <div class="timer-bar">
+      <div>
+        <div style="font-size:0.75rem; color:var(--text-muted);">Satzpausen-Timer</div>
+        <div class="timer-display" id="restTimerDisplay">01:30</div>
+      </div>
+      <div style="display:flex; gap:6px;">
+        <button class="btn btn-sm" onclick="startRestTimer(60)">60s</button>
+        <button class="btn btn-sm" onclick="startRestTimer(90)">90s</button>
+        <button class="btn btn-sm btn-danger" onclick="stopRestTimer()">Stop</button>
+      </div>
+    </div>
+
+    <!-- 1. Aufwärmen -->
+    <div class="card" id="warmupCard">
+      <div class="flex-between">
+        <div>
+          <div class="exercise-title">1. Aufwärmen (Warm-up)</div>
+          <div class="muscle-tag" id="warmupDescDisplay">Synchro (Crosstrainer) · Stufe 14 · 10 Min.</div>
+        </div>
+        <button class="check-btn" id="warmupCheckBtn" onclick="toggleWarmup()">✓</button>
+      </div>
+    </div>
+
+    <!-- 2. Dynamischer Kraft-Zirkel -->
+    <div id="exerciseList"></div>
+
+    <!-- 3. Cardio-Finish -->
+    <div class="card" id="cardioCard">
+      <div class="flex-between">
+        <div>
+          <div class="exercise-title">Cardio-Finish (15–20 Min.)</div>
+          <div class="muscle-tag">Ausklang & Fettverbrennung</div>
+        </div>
+        <button class="check-btn" id="cardioCheckBtn" onclick="toggleCardio()">✓</button>
+      </div>
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:12px;">
+        <div>
+          <label>Gerät</label>
+          <select id="cardioDevice" style="margin-bottom:0;">
+            <option value="Synchro (Crosstrainer)">Synchro (Crosstrainer)</option>
+            <option value="Skillrow">Skillrow</option>
+            <option value="Treadmill (5–8% Steigung)">Treadmill (5–8% Steigung)</option>
+          </select>
+        </div>
+        <div>
+          <label>Dauer (Minuten)</label>
+          <input type="number" id="cardioMinutes" value="15" min="1" max="120" style="margin-bottom:0;" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Training abschließen -->
+    <button class="btn btn-primary" style="width:100%; padding:14px; font-size:1rem; margin-top:6px;" onclick="finishWorkout()">
+      Training abschließen & Gewichte speichern
+    </button>
+  </div>
+
+  <!-- TAB 2: PLAN BEARBEITEN (DYNAMISCH) -->
+  <div id="tab-plan" class="tab-content">
+    <div class="card">
+      <div class="flex-between">
+        <div>
+          <h2 style="margin:0; font-size:1.1rem;">Dynamischer Trainingsplan</h2>
+          <div class="muscle-tag">Geräte hinzufügen, sortieren & Einstellungen anpassen</div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="openExerciseModal()">+ Gerät</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <label>Aufwärm-Notiz (wird nicht historisiert)</label>
+      <div style="display:flex; gap:8px;">
+        <input type="text" id="warmupInput" style="margin:0;" />
+        <button class="btn btn-blue btn-sm" onclick="saveWarmupSetting()">Speichern</button>
+      </div>
+    </div>
+
+    <div id="planEditorList"></div>
+  </div>
+
+  <!-- TAB 3: HISTORIE (NUR GEWICHTE) -->
+  <div id="tab-history" class="tab-content">
+    <div class="card">
+      <h2 style="margin:0 0 6px 0; font-size:1.1rem;">Trainings-Historie</h2>
+      <div class="muscle-tag">Protokolliert werden ausschließlich Datum, Gewichte & Wiederholungen – keine Geräteeinstellungen.</div>
+    </div>
+
+    <div class="card">
+      <label>Fortschritt nach Gerät filtern</label>
+      <select id="historyFilter" onchange="renderHistory()" style="margin-bottom:0;">
+        <option value="ALL">Alle absolvierten Trainings anzeigen</option>
+      </select>
+    </div>
+
+    <div id="historyList"></div>
+  </div>
+
+</div>
+
+<!-- MODAL: GERÄT HINZUFÜGEN / BEARBEITEN -->
+<div class="modal-backdrop" id="exerciseModal">
+  <div class="modal">
+    <h2 id="modalTitle">Gerät bearbeiten</h2>
+    <input type="hidden" id="editExId" />
+
+    <label>Gerätename / Übung</label>
+    <input type="text" id="editExName" placeholder="z. B. Legpress" />
+
+    <label>Muskelgruppe</label>
+    <input type="text" id="editExMuscle" placeholder="z. B. Oberschenkel / Po" />
+
+    <label>Geräteeinstellung (Sitz, Lehne – ohne Historie)</label>
+    <input type="text" id="editExSetting" placeholder="z. B. Sitz 6 + 2" />
+
+    <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px;">
+      <div>
+        <label>Sätze</label>
+        <input type="number" id="editExSets" value="3" min="1" max="10" />
+      </div>
+      <div>
+        <label>Start-Wdh.</label>
+        <input type="number" id="editExReps" value="12" min="1" max="50" />
+      </div>
+      <div>
+        <label>Start-kg</label>
+        <input type="number" id="editExWeight" value="40" step="0.5" min="0" />
+      </div>
+    </div>
+
+    <div class="flex-between" style="margin-top:8px;">
+      <button class="btn" onclick="closeExerciseModal()">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveExercise()">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: FIREBASE & DATEN-BACKUP -->
+<div class="modal-backdrop" id="settingsModal">
+  <div class="modal">
+    <h2>Cloud-Sync (Firebase) & Backup</h2>
+    <p style="font-size:0.82rem; color:var(--text-muted); margin-top:0;">
+      Trage hier die URL deiner Firebase Realtime Database ein (wie bei deinem Dart-Manager), um deine Daten auf allen Geräten live zu synchronisieren. Ohne URL speichert die App lokal auf deinem Handy.
+    </p>
+    <label>Firebase Realtime Database URL</label>
+    <input type="url" id="firebaseUrlInput" placeholder="https://dein-projekt-default-rtdb.europe-west1.firebasedatabase.app" />
+
+    <div class="flex-between" style="margin-top:6px;">
+      <button class="btn btn-primary" onclick="saveFirebaseUrl()">Verbinden & Sync</button>
+      <button class="btn" onclick="closeSettingsModal()">Schließen</button>
+    </div>
+
+    <hr style="border-color:var(--border); margin:18px 0;" />
+    <div style="font-size:0.85rem; font-weight:700; margin-bottom:8px;">Daten-Sicherung</div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <button class="btn btn-sm btn-blue" onclick="exportData()">JSON Exportieren</button>
+      <button class="btn btn-sm btn-danger" onclick="resetToDefaultPlan()">Standardplan wiederherstellen</button>
+    </div>
+  </div>
+</div>
+
+<!-- BOTTOM NAVIGATION -->
+<nav class="bottom-nav">
+  <button class="nav-item active" onclick="switchTab('workout', this)">
+    <span class="icon">🏋️</span>
+    <span>Training</span>
+  </button>
+  <button class="nav-item" onclick="switchTab('plan', this)">
+    <span class="icon">⚙️</span>
+    <span>Plan ändern</span>
+  </button>
+  <button class="nav-item" onclick="switchTab('history', this)">
+    <span class="icon">📈</span>
+    <span>Historie</span>
+  </button>
+</nav>
+
+<script>
+  // --- INITIALER PLAN AUS DEINEM GOOGLE DOC ---
+  const DEFAULT_EXERCISES = [
+    { id: "ex_1", name: "Legpress", muscle: "Oberschenkel / Po", setting: "Sitz 5", sets: 3, defaultReps: 12, defaultWeight: 120 },
+    { id: "ex_2", name: "Abductor", muscle: "Äußere Oberschenkel / Hüfte", setting: "Sitz 2", sets: 3, defaultReps: 12, defaultWeight: 50 },
+    { id: "ex_3", name: "Adductor", muscle: "Innere Oberschenkel", setting: "Sitz 4", sets: 3, defaultReps: 12, defaultWeight: 45 },
+    { id: "ex_4", name: "Chest Press", muscle: "Brust / Trizeps", setting: "Sitz 7", sets: 3, defaultReps: 12, defaultWeight: 40 },
+    { id: "ex_5", name: "Low Row", muscle: "Oberer Rücken / Bizeps", setting: "Sitz 6 + 2", sets: 3, defaultReps: 12, defaultWeight: 45 },
+    { id: "ex_6", name: "Reverse Fly", muscle: "Hintere Schulter / Oberer Rücken", setting: "Sitz 5 + 2", sets: 3, defaultReps: 12, defaultWeight: 25 },
+    { id: "ex_7", name: "Shoulder Press", muscle: "Schultern", setting: "Sitz 6", sets: 3, defaultReps: 12, defaultWeight: 20 },
+    { id: "ex_8", name: "Lower Back", muscle: "Unterer Rücken", setting: "Sitz 3 + 2", sets: 3, defaultReps: 12, defaultWeight: 40 },
+    { id: "ex_9", name: "Abdominal Crunch", muscle: "Bauch", setting: "Standard", sets: 3, defaultReps: 12, defaultWeight: 30 },
+    { id: "ex_10", name: "Pectoral (Butterfly)", muscle: "Brust", setting: "Sitz 7", sets: 3, defaultReps: 12, defaultWeight: 30 }
+  ];
+
+  // --- STATE ---
+  let appData = {
+    warmupNote: "Synchro (Crosstrainer) · Stufe 14 · 10 Min.",
+    exercises: [],
+    history: [] // Speichert NUR { id, date, cardio, logs: [ { exerciseId, name, sets: [{weight, reps}] } ] }
+  };
+
+  let activeSession = {
+    warmupDone: false,
+    cardioDone: false,
+    setsState: {} // { exId: [ { weight, reps, done }, ... ] }
+  };
+
+  let firebaseUrl = localStorage.getItem("rac_gym_firebase_url") || "";
+  let timerInterval = null;
+  let timerSeconds = 90;
+
+  // --- INIT ---
+  async function init() {
+    const localSaved = localStorage.getItem("rac_gym_data");
+    if (localSaved) {
+      appData = JSON.parse(localSaved);
+    } else {
+      appData.exercises = JSON.parse(JSON.stringify(DEFAULT_EXERCISES));
+    }
+
+    if (firebaseUrl) {
+      document.getElementById("firebaseUrlInput").value = firebaseUrl;
+      await pullFromFirebase();
+    }
+
+    initActiveSession();
+    renderAll();
+  }
+
+  function initActiveSession() {
+    appData.exercises.forEach(ex => {
+      if (!activeSession.setsState[ex.id] || activeSession.setsState[ex.id].length !== ex.sets) {
+        const lastWeights = getLastExerciseLog(ex.id);
+        const arr = [];
+        for (let i = 0; i < ex.sets; i++) {
+          const prevSet = lastWeights && lastWeights.sets[i] ? lastWeights.sets[i] : null;
+          arr.push({
+            weight: prevSet ? prevSet.weight : ex.defaultWeight,
+            reps: prevSet ? prevSet.reps : ex.defaultReps,
+            done: false
+          });
+        }
+        activeSession.setsState[ex.id] = arr;
+      }
+    });
+  }
+
+  // --- PERSISTENCE (LOKAL + FIREBASE REST API) ---
+  async function saveData() {
+    localStorage.setItem("rac_gym_data", JSON.stringify(appData));
+    if (firebaseUrl) {
+      try {
+        const cleanUrl = firebaseUrl.replace(/\/$/, "");
+        const res = await fetch(`${cleanUrl}/racGymTracker.json`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(appData)
+        });
+        if (res.ok) {
+          setSyncStatus(true, "Cloud Sync");
+        } else {
+          setSyncStatus(false, "Sync Fehler");
+        }
+      } catch (e) {
+        setSyncStatus(false, "Offline");
+      }
+    } else {
+      setSyncStatus(false, "Lokal");
+    }
+  }
+
+  async function pullFromFirebase() {
+    if (!firebaseUrl) return;
+    try {
+      const cleanUrl = firebaseUrl.replace(/\/$/, "");
+      const res = await fetch(`${cleanUrl}/racGymTracker.json`);
+      if (res.ok) {
+        const cloudData = await res.json();
+        if (cloudData && cloudData.exercises) {
+          appData = cloudData;
+          if (!appData.history) appData.history = [];
+          localStorage.setItem("rac_gym_data", JSON.stringify(appData));
+        } else {
+          await saveData();
+        }
+        setSyncStatus(true, "Cloud Sync");
+      }
+    } catch (e) {
+      setSyncStatus(false, "Offline");
+    }
+  }
+
+  function setSyncStatus(isOnline, text) {
+    const dot = document.getElementById("syncDot");
+    const label = document.getElementById("syncText");
+    dot.className = "sync-dot" + (isOnline ? " online" : "");
+    label.textContent = text;
+  }
+
+  // --- HELPER: LETZTES TRAINING FÜR ÜBUNG FINDEN ---
+  function getLastExerciseLog(exerciseId) {
+    for (let i = 0; i < appData.history.length; i++) {
+      const entry = appData.history[i];
+      const found = entry.logs.find(l => l.exerciseId === exerciseId);
+      if (found) return { date: entry.date, sets: found.sets };
+    }
+    return null;
+  }
+
+  // --- RENDER WORKOUT ---
+  function renderWorkout() {
+    document.getElementById("warmupDescDisplay").textContent = appData.warmupNote;
+    document.getElementById("warmupInput").value = appData.warmupNote;
+
+    const wBtn = document.getElementById("warmupCheckBtn");
+    const wCard = document.getElementById("warmupCard");
+    wBtn.className = "check-btn" + (activeSession.warmupDone ? " checked" : "");
+    wCard.className = "card" + (activeSession.warmupDone ? " completed" : "");
+
+    const cBtn = document.getElementById("cardioCheckBtn");
+    const cCard = document.getElementById("cardioCard");
+    cBtn.className = "check-btn" + (activeSession.cardioDone ? " checked" : "");
+    cCard.className = "card" + (activeSession.cardioDone ? " completed" : "");
+
+    const listEl = document.getElementById("exerciseList");
+    listEl.innerHTML = "";
+
+    appData.exercises.forEach((ex, idx) => {
+      const sets = activeSession.setsState[ex.id] || [];
+      const allDone = sets.length > 0 && sets.every(s => s.done);
+      const lastLog = getLastExerciseLog(ex.id);
+      const lastText = lastLog
+        ? `Letztes Mal (${lastLog.date}): ` + lastLog.sets.map(s => `${s.weight}kg × ${s.reps}`).join(" | ")
+        : `Start-Vorgabe: ${ex.sets} × ${ex.defaultReps} Wdh. @ ${ex.defaultWeight} kg`;
+
+      let setsHtml = "";
+      sets.forEach((s, sIdx) => {
+        setsHtml += `
+          <div class="set-row ${s.done ? "done" : ""}">
+            <div class="set-num">#${sIdx + 1}</div>
+            <div class="stepper">
+              <button onclick="adjustSet('${ex.id}', ${sIdx}, 'weight', -2.5)">−</button>
+              <div class="stepper-val">${s.weight} kg<span>Gewicht</span></div>
+              <button onclick="adjustSet('${ex.id}', ${sIdx}, 'weight', 2.5)">+</button>
+            </div>
+            <div class="stepper">
+              <button onclick="adjustSet('${ex.id}', ${sIdx}, 'reps', -1)">−</button>
+              <div class="stepper-val">${s.reps}<span>Wdh.</span></div>
+              <button onclick="adjustSet('${ex.id}', ${sIdx}, 'reps', 1)">+</button>
+            </div>
+            <button class="check-btn ${s.done ? "checked" : ""}" onclick="toggleSetDone('${ex.id}', ${sIdx})">✓</button>
+          </div>
+        `;
+      });
+
+      const card = document.createElement("div");
+      card.className = "card" + (allDone ? " completed" : "");
+      card.innerHTML = `
+        <div class="card-header">
+          <div>
+            <div class="exercise-title">${idx + 1}. ${ex.name}</div>
+            <div class="muscle-tag">${ex.muscle}</div>
+            ${ex.setting ? `<div class="setting-badge">⚙️ ${ex.setting}</div>` : ""}
+            <div class="last-perf">${lastText}</div>
+          </div>
+          <button class="btn btn-sm" onclick="copyFirstSetToAll('${ex.id}')" title="Satz 1 auf alle Sätze kopieren">1→Alle</button>
+        </div>
+        <div class="sets-container">${setsHtml}</div>
+      `;
+      listEl.appendChild(card);
+    });
+  }
+
+  function adjustSet(exId, setIdx, field, delta) {
+    const s = activeSession.setsState[exId][setIdx];
+    s[field] = Math.max(0, +(s[field] + delta).toFixed(1));
+    renderWorkout();
+  }
+
+  function copyFirstSetToAll(exId) {
+    const sets = activeSession.setsState[exId];
+    if (!sets || sets.length < 2) return;
+    const first = sets[0];
+    for (let i = 1; i < sets.length; i++) {
+      sets[i].weight = first.weight;
+      sets[i].reps = first.reps;
+    }
+    renderWorkout();
+  }
+
+  function toggleSetDone(exId, setIdx) {
+    const s = activeSession.setsState[exId][setIdx];
+    s.done = !s.done;
+    if (s.done) {
+      startRestTimer(90);
+    }
+    renderWorkout();
+  }
+
+  function toggleWarmup() {
+    activeSession.warmupDone = !activeSession.warmupDone;
+    renderWorkout();
+  }
+
+  function toggleCardio() {
+    activeSession.cardioDone = !activeSession.cardioDone;
+    renderWorkout();
+  }
+
+  // --- TRAINING ABSCHLIESSEN (NUR GEWICHTE SPEICHERN, KEINE EINSTELLUNGEN) ---
+  async function finishWorkout() {
+    const logs = [];
+    appData.exercises.forEach(ex => {
+      const sets = activeSession.setsState[ex.id] || [];
+      const completedSets = sets.filter(s => s.done).map(s => ({
+        weight: s.weight,
+        reps: s.reps
+      }));
+      if (completedSets.length > 0) {
+        logs.push({
+          exerciseId: ex.id,
+          name: ex.name,
+          sets: completedSets
+        });
+      }
+    });
+
+    if (logs.length === 0 && !activeSession.cardioDone) {
+      alert("Bitte hake mindestens einen absolvierten Satz ab, bevor du das Training speicherst.");
+      return;
+    }
+
+    const now = new Date();
+    const dateStr = now.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+    const timeStr = now.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+
+    const cardioSummary = activeSession.cardioDone
+      ? `${document.getElementById("cardioDevice").value} (${document.getElementById("cardioMinutes").value} Min.)`
+      : null;
+
+    appData.history.unshift({
+      id: "w_" + Date.now(),
+      date: `${dateStr} (${timeStr})`,
+      cardio: cardioSummary,
+      logs: logs
+    });
+
+    await saveData();
+
+    // Session zurücksetzen, neue Gewichte als Basis übernehmen
+    activeSession = { warmupDone: false, cardioDone: false, setsState: {} };
+    initActiveSession();
+    renderAll();
+    alert("Training erfolgreich gespeichert! Deine neuen Gewichte sind in der Historie hinterlegt.");
+  }
+
+  // --- DYNAMISCHER PLAN EDITOR ---
+  function renderPlanEditor() {
+    const listEl = document.getElementById("planEditorList");
+    listEl.innerHTML = "";
+
+    appData.exercises.forEach((ex, idx) => {
+      const card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML = `
+        <div class="flex-between">
+          <div>
+            <div class="exercise-title">${idx + 1}. ${ex.name}</div>
+            <div class="muscle-tag">${ex.muscle} · ${ex.sets} Sätze</div>
+            <div class="setting-badge">⚙️ ${ex.setting || "Keine Einstellung"}</div>
+          </div>
+          <div style="display:flex; gap:5px; flex-wrap:wrap; justify-content:flex-end;">
+            <button class="btn btn-icon" onclick="moveExercise(${idx}, -1)" ${idx === 0 ? "disabled style='opacity:0.3'" : ""}>↑</button>
+            <button class="btn btn-icon" onclick="moveExercise(${idx}, 1)" ${idx === appData.exercises.length - 1 ? "disabled style='opacity:0.3'" : ""}>↓</button>
+            <button class="btn btn-icon btn-blue" onclick="openExerciseModal('${ex.id}')">✎</button>
+            <button class="btn btn-icon btn-danger" onclick="deleteExercise('${ex.id}')">✕</button>
+          </div>
+        </div>
+      `;
+      listEl.appendChild(card);
+    });
+  }
+
+  async function moveExercise(index, direction) {
+    const newIndex = index + direction;
+    if (newIndex < 0 || newIndex >= appData.exercises.length) return;
+    const item = appData.exercises.splice(index, 1)[0];
+    appData.exercises.splice(newIndex, 0, item);
+    await saveData();
+    renderAll();
+  }
+
+  async function deleteExercise(exId) {
+    if (!confirm("Dieses Gerät wirklich aus deinem aktuellen Plan entfernen? (Bestehende Gewichts-Historie bleibt erhalten.)")) return;
+    appData.exercises = appData.exercises.filter(e => e.id !== exId);
+    delete activeSession.setsState[exId];
+    await saveData();
+    renderAll();
+  }
+
+  function openExerciseModal(exId = null) {
+    const modal = document.getElementById("exerciseModal");
+    if (exId) {
+      const ex = appData.exercises.find(e => e.id === exId);
+      document.getElementById("modalTitle").textContent = "Gerät & Einstellung bearbeiten";
+      document.getElementById("editExId").value = ex.id;
+      document.getElementById("editExName").value = ex.name;
+      document.getElementById("editExMuscle").value = ex.muscle;
+      document.getElementById("editExSetting").value = ex.setting;
+      document.getElementById("editExSets").value = ex.sets;
+      document.getElementById("editExReps").value = ex.defaultReps;
+      document.getElementById("editExWeight").value = ex.defaultWeight;
+    } else {
+      document.getElementById("modalTitle").textContent = "Neues Gerät hinzufügen";
+      document.getElementById("editExId").value = "";
+      document.getElementById("editExName").value = "";
+      document.getElementById("editExMuscle").value = "";
+      document.getElementById("editExSetting").value = "";
+      document.getElementById("editExSets").value = 3;
+      document.getElementById("editExReps").value = 12;
+      document.getElementById("editExWeight").value = 30;
+    }
+    modal.classList.add("open");
+  }
+
+  function closeExerciseModal() {
+    document.getElementById("exerciseModal").classList.remove("open");
+  }
+
+  async function saveExercise() {
+    const id = document.getElementById("editExId").value;
+    const name = document.getElementById("editExName").value.trim();
+    const muscle = document.getElementById("editExMuscle").value.trim() || "Allgemein";
+    const setting = document.getElementById("editExSetting").value.trim();
+    const sets = parseInt(document.getElementById("editExSets").value) || 3;
+    const defaultReps = parseInt(document.getElementById("editExReps").value) || 12;
+    const defaultWeight = parseFloat(document.getElementById("editExWeight").value) || 0;
+
+    if (!name) {
+      alert("Bitte einen Gerätenamen eingeben.");
+      return;
+    }
+
+    if (id) {
+      const ex = appData.exercises.find(e => e.id === id);
+      ex.name = name;
+      ex.muscle = muscle;
+      ex.setting = setting; // Einstellung wird einfach überschrieben, keine Historie
+      ex.sets = sets;
+      ex.defaultReps = defaultReps;
+      ex.defaultWeight = defaultWeight;
+    } else {
+      appData.exercises.push({
+        id: "ex_" + Date.now(),
+        name,
+        muscle,
+        setting,
+        sets,
+        defaultReps,
+        defaultWeight
+      });
+    }
+
+    initActiveSession();
+    await saveData();
+    closeExerciseModal();
+    renderAll();
+  }
+
+  async function saveWarmupSetting() {
+    appData.warmupNote = document.getElementById("warmupInput").value.trim();
+    await saveData();
+    renderWorkout();
+    alert("Aufwärm-Notiz aktualisiert.");
+  }
+
+  // --- HISTORIE RENDERING (NUR GEWICHTE) ---
+  function renderHistory() {
+    const filterEl = document.getElementById("historyFilter");
+    const currentFilter = filterEl.value;
+
+    // Filter-Dropdown aktualisieren
+    const knownExercises = new Map();
+    appData.exercises.forEach(e => knownExercises.set(e.id, e.name));
+    appData.history.forEach(h => h.logs.forEach(l => knownExercises.set(l.exerciseId, l.name)));
+
+    filterEl.innerHTML = `<option value="ALL">Alle absolvierten Trainings (${appData.history.length})</option>`;
+    knownExercises.forEach((name, id) => {
+      const opt = document.createElement("option");
+      opt.value = id;
+      opt.textContent = name;
+      if (id === currentFilter) opt.selected = true;
+      filterEl.appendChild(opt);
+    });
+
+    const listEl = document.getElementById("historyList");
+    listEl.innerHTML = "";
+
+    if (appData.history.length === 0) {
+      listEl.innerHTML = `<div class="card"><div class="muscle-tag">Noch keine Trainings gespeichert. Schließe dein erstes Workout im Reiter „Training“ ab!</div></div>`;
+      return;
+    }
+
+    appData.history.forEach(session => {
+      const matchingLogs = currentFilter === "ALL"
+        ? session.logs
+        : session.logs.filter(l => l.exerciseId === currentFilter);
+
+      if (currentFilter !== "ALL" && matchingLogs.length === 0) return;
+
+      let logsHtml = "";
+      matchingLogs.forEach(log => {
+        const setsBadges = log.sets.map((s, i) => `<span class="pill">Satz ${i + 1}: <b>${s.weight} kg</b> × ${s.reps}</span>`).join("");
+        logsHtml += `
+          <div class="history-entry">
+            <div style="font-weight:700; font-size:0.92rem;">${log.name}</div>
+            <div class="pill-row">${setsBadges}</div>
+          </div>
+        `;
+      });
+
+      const card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML = `
+        <div class="flex-between" style="margin-bottom:8px;">
+          <div style="font-weight:800; color:#4ade80;">📅 ${session.date}</div>
+          <button class="btn btn-sm btn-danger" onclick="deleteHistoryEntry('${session.id}')">Löschen</button>
+        </div>
+        ${session.cardio && currentFilter === "ALL" ? `<div class="muscle-tag" style="margin-bottom:8px;">🏃 Cardio: ${session.cardio}</div>` : ""}
+        ${logsHtml}
+      `;
+      listEl.appendChild(card);
+    });
+  }
+
+  async function deleteHistoryEntry(id) {
+    if (!confirm("Diesen Trainingseintrag wirklich aus der Historie löschen?")) return;
+    appData.history = appData.history.filter(h => h.id !== id);
+    await saveData();
+    renderHistory();
+  }
+
+  // --- PAUSEN-TIMER ---
+  function startRestTimer(seconds) {
+    stopRestTimer();
+    timerSeconds = seconds;
+    updateTimerDisplay();
+    timerInterval = setInterval(() => {
+      timerSeconds--;
+      updateTimerDisplay();
+      if (timerSeconds <= 0) {
+        stopRestTimer();
+        if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+      }
+    }, 1000);
+  }
+
+  function stopRestTimer() {
+    if (timerInterval) clearInterval(timerInterval);
+    timerInterval = null;
+  }
+
+  function updateTimerDisplay() {
+    const mins = String(Math.floor(timerSeconds / 60)).padStart(2, "0");
+    const secs = String(timerSeconds % 60).padStart(2, "0");
+    document.getElementById("restTimerDisplay").textContent = `${mins}:${secs}`;
+  }
+
+  // --- NAVIGATION & SETTINGS ---
+  function switchTab(tabName, btnEl) {
+    document.querySelectorAll(".tab-content").forEach(t => t.classList.remove("active"));
+    document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
+    document.getElementById("tab-" + tabName).classList.add("active");
+    btnEl.classList.add("active");
+    renderAll();
+  }
+
+  function openSettingsModal() {
+    document.getElementById("settingsModal").classList.add("open");
+  }
+
+  function closeSettingsModal() {
+    document.getElementById("settingsModal").classList.remove("open");
+  }
+
+  async function saveFirebaseUrl() {
+    firebaseUrl = document.getElementById("firebaseUrlInput").value.trim();
+    localStorage.setItem("rac_gym_firebase_url", firebaseUrl);
+    if (firebaseUrl) {
+      await pullFromFirebase();
+      initActiveSession();
+      renderAll();
+      alert("Firebase erfolgreich verbunden!");
+    } else {
+      setSyncStatus(false, "Lokal");
+    }
+    closeSettingsModal();
+  }
+
+  function exportData() {
+    const blob = new Blob([JSON.stringify(appData, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `rac-gym-backup-${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+  }
+
+  async function resetToDefaultPlan() {
+    if (!confirm("Aktuellen Plan auf deinen ursprünglichen RAC-Plan zurücksetzen? (Historie bleibt erhalten.)")) return;
+    appData.exercises = JSON.parse(JSON.stringify(DEFAULT_EXERCISES));
+    activeSession = { warmupDone: false, cardioDone: false, setsState: {} };
+    initActiveSession();
+    await saveData();
+    renderAll();
+    closeSettingsModal();
+  }
+
+  function renderAll() {
+    renderWorkout();
+    renderPlanEditor();
+    renderHistory();
+  }
+
+  init();
+</script>
+</body>
+</html>
