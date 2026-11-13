@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>RAC Gym Tracker – Dynamischer Trainingsplan</title>
+  <title>RACern</title>
   <style>
     :root {
       --bg-body: #11161d;
@@ -49,15 +49,9 @@
 
     header h1 {
       margin: 0;
-      font-size: 1.2rem;
+      font-size: 1.25rem;
       font-weight: 700;
-      letter-spacing: 0.3px;
-    }
-
-    header .subtitle {
-      font-size: 0.78rem;
-      opacity: 0.9;
-      margin-top: 2px;
+      letter-spacing: 0.4px;
     }
 
     .sync-badge {
@@ -118,6 +112,39 @@
       justify-content: space-between;
       align-items: flex-start;
       gap: 10px;
+    }
+
+    .ex-header-left {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .machine-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 11px;
+      background: rgba(25, 118, 210, 0.14);
+      border: 1px solid rgba(25, 118, 210, 0.32);
+      color: #64b5f6;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .machine-icon svg {
+      width: 28px;
+      height: 28px;
+    }
+
+    .card.completed .machine-icon {
+      background: rgba(46, 125, 50, 0.22);
+      border-color: rgba(74, 222, 128, 0.4);
+      color: #4ade80;
     }
 
     .exercise-title {
@@ -488,8 +515,7 @@
 
 <header>
   <div>
-    <h1>RAC Gym Tracker</h1>
-    <div class="subtitle">Dynamischer Trainingsplan & Gewichts-Historie</div>
+    <h1>RACern</h1>
   </div>
   <div class="sync-badge" onclick="openSettingsModal()">
     <div class="sync-dot" id="syncDot"></div>
@@ -505,9 +531,12 @@
     <!-- 1. Aufwärmen (Stufe & Zeit direkt anpassbar wie bei Übungen) -->
     <div class="card" id="warmupCard">
       <div class="flex-between">
-        <div>
-          <div class="exercise-title">Aufwärmen (Warm-up)</div>
-          <div class="muscle-tag" id="warmupDeviceDisplay">Synchro (Crosstrainer)</div>
+        <div class="ex-header-left">
+          <div class="machine-icon" id="warmupIconBox"></div>
+          <div>
+            <div class="exercise-title">Aufwärmen (Warm-up)</div>
+            <div class="muscle-tag" id="warmupDeviceDisplay">Synchro (Crosstrainer)</div>
+          </div>
         </div>
         <button class="check-btn" id="warmupCheckBtn" onclick="toggleWarmup()">✓</button>
       </div>
@@ -544,9 +573,12 @@
     <!-- 3. Cardio-Finish -->
     <div class="card" id="cardioCard">
       <div class="flex-between">
-        <div>
-          <div class="exercise-title">Cardio-Finish (15–20 Min.)</div>
-          <div class="muscle-tag">Ausklang & Fettverbrennung</div>
+        <div class="ex-header-left">
+          <div class="machine-icon" id="cardioIconBox"></div>
+          <div>
+            <div class="exercise-title">Cardio-Finish (15–20 Min.)</div>
+            <div class="muscle-tag">Ausklang & Fettverbrennung</div>
+          </div>
         </div>
         <button class="check-btn" id="cardioCheckBtn" onclick="toggleCardio()">✓</button>
       </div>
@@ -651,6 +683,24 @@
     <label>Gerätename / Übung</label>
     <input type="text" id="editExName" placeholder="z. B. Legpress" />
 
+    <label>Geräte-Symbol (Schema)</label>
+    <select id="editExIcon">
+      <option value="auto">Automatisch nach Gerätename erkennen</option>
+      <option value="legpress">Beinpresse (Legpress)</option>
+      <option value="abductor">Beinspreizer außen (Abductor)</option>
+      <option value="adductor">Beindrücker innen (Adductor)</option>
+      <option value="chestpress">Brustpresse (Chest Press)</option>
+      <option value="lowrow">Ruderzug (Low Row)</option>
+      <option value="reversefly">Butterfly Reverse (Reverse Fly)</option>
+      <option value="shoulderpress">Schulterpresse (Shoulder Press)</option>
+      <option value="lowerback">Rückenstrecker (Lower Back)</option>
+      <option value="crunch">Bauchmaschine (Abdominal Crunch)</option>
+      <option value="pectoral">Butterfly Brust (Pectoral)</option>
+      <option value="latpulldown">Latzug / Seilzug</option>
+      <option value="legcurl">Beinbeuger / Beinstrecker</option>
+      <option value="generic">Allgemeines Kraftgerät</option>
+    </select>
+
     <label>Muskelgruppe</label>
     <input type="text" id="editExMuscle" placeholder="z. B. Oberschenkel / Po" />
 
@@ -721,21 +771,144 @@
 </nav>
 
 <script>
+  // --- SCHEMATISCHE GERÄTE-SVGs ---
+  const MACHINE_SVGS = {
+    crosstrainer: `<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="5" y1="27" x2="27" y2="27"/>
+      <ellipse cx="16" cy="22" rx="7" ry="3.5"/>
+      <path d="M12 22 L9 8 M20 22 L23 8"/>
+      <circle cx="9" cy="7" r="1.5" fill="currentColor"/>
+      <circle cx="23" cy="7" r="1.5" fill="currentColor"/>
+      <path d="M16 18.5 L16 11 L13 11"/>
+    </svg>`,
+    cardio: `<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="4" y1="26" x2="28" y2="22"/>
+      <path d="M22 23 L25 9 L21 9"/>
+      <path d="M8 20 Q12 14 16 17 T24 13"/>
+    </svg>`,
+    legpress: `<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M5 14 L5 23 L14 23"/>
+      <line x1="12" y1="26" x2="27" y2="11"/>
+      <line x1="22" y1="7" x2="28" y2="13" stroke-width="2.5"/>
+      <path d="M14 20 L21 13" stroke-dasharray="2 2"/>
+      <polyline points="18,13 21,13 21,16"/>
+    </svg>`,
+    abductor: `<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="12" y="13" width="8" height="6" rx="1.5"/>
+      <path d="M12 16 L6 16 M8 13 L5 16 L8 19"/>
+      <path d="M20 16 L26 16 M24 13 L27 16 L24 19"/>
+      <line x1="16" y1="7" x2="16" y2="13"/>
+      <line x1="16" y1="19" x2="16" y2="26"/>
+    </svg>`,
+    adductor: `<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="12" y="13" width="8" height="6" rx="1.5"/>
+      <path d="M4 16 L10 16 M8 13 L11 16 L8 19"/>
+      <path d="M28 16 L22 16 M24 13 L21 16 L24 19"/>
+      <line x1="16" y1="7" x2="16" y2="13"/>
+      <line x1="16" y1="19" x2="16" y2="26"/>
+    </svg>`,
+    chestpress: `<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M8 7 L8 23 L15 23"/>
+      <line x1="11" y1="23" x2="11" y2="27"/>
+      <path d="M13 10 L13 17 L18 17"/>
+      <path d="M18 14 L26 14 M23 11 L26 14 L23 17"/>
+    </svg>`,
+    lowrow: `<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="5" y="7" width="5" height="19" rx="1"/>
+      <line x1="10" y1="18" x2="21" y2="18"/>
+      <polyline points="17,15 21,18 17,21"/>
+      <path d="M22 23 L27 23 M25 23 L25 27"/>
+    </svg>`,
+    reversefly: `<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="16" cy="11" r="3"/>
+      <line x1="16" y1="14" x2="16" y2="24"/>
+      <path d="M16 16 Q10 15 6 19"/>
+      <path d="M16 16 Q22 15 26 19"/>
+      <polyline points="8,16 6,19 9,20"/>
+      <polyline points="24,16 26,19 23,20"/>
+    </svg>`,
+    shoulderpress: `<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M11 15 L11 24 L21 24 L21 15"/>
+      <line x1="16" y1="24" x2="16" y2="28"/>
+      <line x1="10" y1="12" x2="22" y2="12" stroke-width="2.5"/>
+      <path d="M16 10 L16 4 M13 7 L16 4 L19 7"/>
+    </svg>`,
+    lowerback: `<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M9 22 L17 22 M13 22 L13 27"/>
+      <path d="M13 22 L19 11"/>
+      <circle cx="15" cy="12" r="2.2" fill="currentColor"/>
+      <path d="M21 10 L25 14 M25 10 L25 14 L21 14"/>
+    </svg>`,
+    crunch: `<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M9 11 L9 22 L18 22"/>
+      <line x1="13" y1="22" x2="13" y2="27"/>
+      <path d="M12 11 Q19 11 21 18"/>
+      <polyline points="18,16 21,18 23,15"/>
+    </svg>`,
+    pectoral: `<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="13" y="7" width="6" height="18" rx="1.5"/>
+      <path d="M6 10 Q6 17 11 17"/>
+      <path d="M26 10 Q26 17 21 17"/>
+      <polyline points="9,14 11,17 8,19"/>
+      <polyline points="23,14 21,17 24,19"/>
+    </svg>`,
+    latpulldown: `<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M6 6 L26 6"/>
+      <line x1="16" y1="6" x2="16" y2="13"/>
+      <line x1="9" y1="13" x2="23" y2="13" stroke-width="2.5"/>
+      <path d="M16 15 L16 21 M13 18 L16 21 L19 18"/>
+      <line x1="11" y1="25" x2="21" y2="25"/>
+    </svg>`,
+    legcurl: `<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M7 9 L7 19 L18 19"/>
+      <path d="M18 19 L23 26"/>
+      <circle cx="24" cy="26" r="2" fill="currentColor"/>
+      <path d="M23 21 Q25 23 24 26"/>
+    </svg>`,
+    generic: `<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="6" y1="16" x2="26" y2="16" stroke-width="2.5"/>
+      <rect x="4" y="11" width="3" height="10" rx="1"/>
+      <rect x="25" y="11" width="3" height="10" rx="1"/>
+      <rect x="8" y="13" width="2" height="6" rx="0.5"/>
+      <rect x="22" y="13" width="2" height="6" rx="0.5"/>
+    </svg>`
+  };
+
+  function getExerciseSvg(ex) {
+    if (ex.icon && ex.icon !== "auto" && MACHINE_SVGS[ex.icon]) {
+      return MACHINE_SVGS[ex.icon];
+    }
+    const n = (ex.name || "").toLowerCase();
+    if (n.includes("legpress") || n.includes("beinpresse")) return MACHINE_SVGS.legpress;
+    if (n.includes("abductor") || n.includes("abduktor")) return MACHINE_SVGS.abductor;
+    if (n.includes("adductor") || n.includes("adduktor")) return MACHINE_SVGS.adductor;
+    if (n.includes("chest")) return MACHINE_SVGS.chestpress;
+    if (n.includes("row") || n.includes("ruder")) return MACHINE_SVGS.lowrow;
+    if (n.includes("reverse")) return MACHINE_SVGS.reversefly;
+    if (n.includes("shoulder") || n.includes("schulter")) return MACHINE_SVGS.shoulderpress;
+    if (n.includes("back") || n.includes("rücken")) return MACHINE_SVGS.lowerback;
+    if (n.includes("crunch") || n.includes("bauch")) return MACHINE_SVGS.crunch;
+    if (n.includes("pectoral") || n.includes("butterfly")) return MACHINE_SVGS.pectoral;
+    if (n.includes("lat") || n.includes("zug")) return MACHINE_SVGS.latpulldown;
+    if (n.includes("curl") || n.includes("ext") || n.includes("bein")) return MACHINE_SVGS.legcurl;
+    return MACHINE_SVGS.generic;
+  }
+
   // --- FEST HINTERLEGTE FIREBASE URL ---
   const DEFAULT_FIREBASE_URL = "https://dart-turnier-f94af-default-rtdb.firebaseio.com";
 
   // --- INITIALER PLAN AUS DEINEM GOOGLE DOC ---
   const INITIAL_EXERCISES = [
-    { id: "ex_1", name: "Legpress", muscle: "Oberschenkel / Po", setting: "Sitz 5", sets: 3, defaultReps: 12, defaultWeight: 120 },
-    { id: "ex_2", name: "Abductor", muscle: "Äußere Oberschenkel / Hüfte", setting: "Sitz 2", sets: 3, defaultReps: 12, defaultWeight: 50 },
-    { id: "ex_3", name: "Adductor", muscle: "Innere Oberschenkel", setting: "Sitz 4", sets: 3, defaultReps: 12, defaultWeight: 45 },
-    { id: "ex_4", name: "Chest Press", muscle: "Brust / Trizeps", setting: "Sitz 7", sets: 3, defaultReps: 12, defaultWeight: 40 },
-    { id: "ex_5", name: "Low Row", muscle: "Oberer Rücken / Bizeps", setting: "Sitz 6 + 2", sets: 3, defaultReps: 12, defaultWeight: 45 },
-    { id: "ex_6", name: "Reverse Fly", muscle: "Hintere Schulter / Oberer Rücken", setting: "Sitz 5 + 2", sets: 3, defaultReps: 12, defaultWeight: 25 },
-    { id: "ex_7", name: "Shoulder Press", muscle: "Schultern", setting: "Sitz 6", sets: 3, defaultReps: 12, defaultWeight: 20 },
-    { id: "ex_8", name: "Lower Back", muscle: "Unterer Rücken", setting: "Sitz 3 + 2", sets: 3, defaultReps: 12, defaultWeight: 40 },
-    { id: "ex_9", name: "Abdominal Crunch", muscle: "Bauch", setting: "Standard", sets: 3, defaultReps: 12, defaultWeight: 30 },
-    { id: "ex_10", name: "Pectoral (Butterfly)", muscle: "Brust", setting: "Sitz 7", sets: 3, defaultReps: 12, defaultWeight: 30 }
+    { id: "ex_1", name: "Legpress", icon: "legpress", muscle: "Oberschenkel / Po", setting: "Sitz 5", sets: 3, defaultReps: 12, defaultWeight: 120 },
+    { id: "ex_2", name: "Abductor", icon: "abductor", muscle: "Äußere Oberschenkel / Hüfte", setting: "Sitz 2", sets: 3, defaultReps: 12, defaultWeight: 50 },
+    { id: "ex_3", name: "Adductor", icon: "adductor", muscle: "Innere Oberschenkel", setting: "Sitz 4", sets: 3, defaultReps: 12, defaultWeight: 45 },
+    { id: "ex_4", name: "Chest Press", icon: "chestpress", muscle: "Brust / Trizeps", setting: "Sitz 7", sets: 3, defaultReps: 12, defaultWeight: 40 },
+    { id: "ex_5", name: "Low Row", icon: "lowrow", muscle: "Oberer Rücken / Bizeps", setting: "Sitz 6 + 2", sets: 3, defaultReps: 12, defaultWeight: 45 },
+    { id: "ex_6", name: "Reverse Fly", icon: "reversefly", muscle: "Hintere Schulter / Oberer Rücken", setting: "Sitz 5 + 2", sets: 3, defaultReps: 12, defaultWeight: 25 },
+    { id: "ex_7", name: "Shoulder Press", icon: "shoulderpress", muscle: "Schultern", setting: "Sitz 6", sets: 3, defaultReps: 12, defaultWeight: 20 },
+    { id: "ex_8", name: "Lower Back", icon: "lowerback", muscle: "Unterer Rücken", setting: "Sitz 3 + 2", sets: 3, defaultReps: 12, defaultWeight: 40 },
+    { id: "ex_9", name: "Abdominal Crunch", icon: "crunch", muscle: "Bauch", setting: "Standard", sets: 3, defaultReps: 12, defaultWeight: 30 },
+    { id: "ex_10", name: "Pectoral (Butterfly)", icon: "pectoral", muscle: "Brust", setting: "Sitz 7", sets: 3, defaultReps: 12, defaultWeight: 30 }
   ];
 
   // --- STATE ---
@@ -744,7 +917,7 @@
     warmupLevel: 14,
     warmupMinutes: 10,
     exercises: JSON.parse(JSON.stringify(INITIAL_EXERCISES)),
-    customDefault: null, // Speichert { savedAt, warmupDevice, warmupLevel, warmupMinutes, exercises }
+    customDefault: null,
     history: []
   };
 
@@ -759,6 +932,9 @@
 
   // --- INIT ---
   async function init() {
+    document.getElementById("warmupIconBox").innerHTML = MACHINE_SVGS.crosstrainer;
+    document.getElementById("cardioIconBox").innerHTML = MACHINE_SVGS.cardio;
+
     const localSaved = localStorage.getItem("rac_gym_data");
     if (localSaved) {
       const parsed = JSON.parse(localSaved);
@@ -965,11 +1141,14 @@
       card.className = "card" + (isExDone ? " completed" : "");
       card.innerHTML = `
         <div class="card-header">
-          <div>
-            <div class="exercise-title">${idx + 1}. ${ex.name}</div>
-            <div class="muscle-tag">${ex.muscle}</div>
-            ${ex.setting ? `<div class="setting-badge">⚙️ ${ex.setting}</div>` : ""}
-            <div class="last-perf">${lastText}</div>
+          <div class="ex-header-left">
+            <div class="machine-icon">${getExerciseSvg(ex)}</div>
+            <div>
+              <div class="exercise-title">${idx + 1}. ${ex.name}</div>
+              <div class="muscle-tag">${ex.muscle}</div>
+              ${ex.setting ? `<div class="setting-badge">⚙️ ${ex.setting}</div>` : ""}
+              <div class="last-perf">${lastText}</div>
+            </div>
           </div>
           <div style="display:flex; align-items:center; gap:8px;">
             <button class="btn btn-sm" onclick="copyFirstSetToAll('${ex.id}')" title="Satz 1 auf alle Sätze kopieren">1→Alle</button>
@@ -1091,10 +1270,13 @@
       card.className = "card";
       card.innerHTML = `
         <div class="flex-between">
-          <div>
-            <div class="exercise-title">${idx + 1}. ${ex.name}</div>
-            <div class="muscle-tag">${ex.muscle} · ${ex.sets} Sätze</div>
-            <div class="setting-badge">⚙️ ${ex.setting || "Keine Einstellung"}</div>
+          <div class="ex-header-left">
+            <div class="machine-icon">${getExerciseSvg(ex)}</div>
+            <div>
+              <div class="exercise-title">${idx + 1}. ${ex.name}</div>
+              <div class="muscle-tag">${ex.muscle} · ${ex.sets} Sätze</div>
+              <div class="setting-badge">⚙️ ${ex.setting || "Keine Einstellung"}</div>
+            </div>
           </div>
           <div style="display:flex; gap:5px; flex-wrap:wrap; justify-content:flex-end;">
             <button class="btn btn-icon" onclick="moveExercise(${idx}, -1)" ${idx === 0 ? "disabled style='opacity:0.3'" : ""}>↑</button>
@@ -1186,6 +1368,7 @@
       document.getElementById("modalTitle").textContent = "Gerät & Einstellung bearbeiten";
       document.getElementById("editExId").value = ex.id;
       document.getElementById("editExName").value = ex.name;
+      document.getElementById("editExIcon").value = ex.icon || "auto";
       document.getElementById("editExMuscle").value = ex.muscle;
       document.getElementById("editExSetting").value = ex.setting;
       document.getElementById("editExSets").value = ex.sets;
@@ -1195,6 +1378,7 @@
       document.getElementById("modalTitle").textContent = "Neues Gerät hinzufügen";
       document.getElementById("editExId").value = "";
       document.getElementById("editExName").value = "";
+      document.getElementById("editExIcon").value = "auto";
       document.getElementById("editExMuscle").value = "";
       document.getElementById("editExSetting").value = "";
       document.getElementById("editExSets").value = 3;
@@ -1211,6 +1395,7 @@
   async function saveExercise() {
     const id = document.getElementById("editExId").value;
     const name = document.getElementById("editExName").value.trim();
+    const icon = document.getElementById("editExIcon").value;
     const muscle = document.getElementById("editExMuscle").value.trim() || "Allgemein";
     const setting = document.getElementById("editExSetting").value.trim();
     const sets = parseInt(document.getElementById("editExSets").value) || 3;
@@ -1225,6 +1410,7 @@
     if (id) {
       const ex = appData.exercises.find(e => e.id === id);
       ex.name = name;
+      ex.icon = icon;
       ex.muscle = muscle;
       ex.setting = setting;
       ex.sets = sets;
@@ -1234,6 +1420,7 @@
       appData.exercises.push({
         id: "ex_" + Date.now(),
         name,
+        icon,
         muscle,
         setting,
         sets,
