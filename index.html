@@ -728,8 +728,10 @@
     </div>
     
     <div class="card" id="chartCard" style="display:none; padding:12px;">
-      <div style="font-size:0.85rem; font-weight:700; color:var(--text-muted); margin-bottom:8px; text-align:center;">Gewichts-Trend (Max. kg)</div>
-      <canvas id="trendCanvas" style="width:100%; max-height:220px;"></canvas>
+      <div id="chartTitle" style="font-size:0.85rem; font-weight:700; color:var(--text-muted); margin-bottom:8px; text-align:center;">Gewichts-Trend (Max. kg)</div>
+      <div style="position: relative; height: 220px; width: 100%;">
+        <canvas id="trendCanvas"></canvas>
+      </div>
     </div>
 
     <div id="historyList"></div>
@@ -1619,67 +1621,90 @@
     listEl.innerHTML = "";
     
     const chartCard = document.getElementById("chartCard");
-    if (currentFilter === "ALL" || appData.history.length === 0) {
-      chartCard.style.display = "none";
-    } else {
-      chartCard.style.display = "block";
-      
+    let chartHasData = false;
+
+    if (currentFilter !== "ALL" && appData.history.length > 0) {
       const dates = [];
       const weights = [];
+      let exName = "";
       
-      // Für den Chart chronologisch sortieren (älteste zuerst)
       const chronological = [...appData.history].reverse();
       
       chronological.forEach(session => {
         const log = session.logs.find(l => l.exerciseId === currentFilter);
         if (log && log.sets && log.sets.length > 0) {
-          // Datum ohne Uhrzeit
-          dates.push(session.date.split(" ")[0]);
-          // Maximales Gewicht des Tages
+          exName = log.name;
+          const shortDate = session.date.split(" ")[0].substring(0, 5); // Zeigt z.B. 13.11.
+          dates.push(shortDate);
           const maxW = Math.max(...log.sets.map(s => s.weight));
           weights.push(maxW);
         }
       });
       
-      if (trendChart) trendChart.destroy();
-      
-      const ctx = document.getElementById("trendCanvas").getContext("2d");
-      trendChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: dates,
-          datasets: [{
-            label: 'Maximalgewicht (kg)',
-            data: weights,
-            borderColor: '#64b5f6',
-            backgroundColor: 'rgba(100, 181, 246, 0.15)',
-            borderWidth: 2.5,
-            pointBackgroundColor: '#1976d2',
-            pointBorderColor: '#64b5f6',
-            pointRadius: 4,
-            fill: true,
-            tension: 0.3
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { display: false }
+      if (weights.length > 0) {
+        chartHasData = true;
+        chartCard.style.display = "block";
+        document.getElementById("chartTitle").textContent = `Gewichts-Trend: ${exName} (Max. kg)`;
+        
+        if (trendChart) trendChart.destroy();
+        
+        const ctx = document.getElementById("trendCanvas").getContext("2d");
+        trendChart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: dates,
+            datasets: [{
+              label: 'Maximalgewicht (kg)',
+              data: weights,
+              borderColor: '#64b5f6',
+              backgroundColor: 'rgba(100, 181, 246, 0.15)',
+              borderWidth: 2.5,
+              pointBackgroundColor: '#1976d2',
+              pointBorderColor: '#64b5f6',
+              pointRadius: 5,
+              pointHoverRadius: 7,
+              fill: true,
+              tension: 0.3
+            }]
           },
-          scales: {
-            y: {
-              beginAtZero: false,
-              grid: { color: 'rgba(255, 255, 255, 0.05)' },
-              ticks: { color: '#94a3b8', font: { size: 10 } }
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: 'rgba(30, 38, 48, 0.9)',
+                titleFont: { size: 13 },
+                bodyFont: { size: 14, weight: 'bold' },
+                displayColors: false,
+                callbacks: {
+                  label: function(context) {
+                    return context.parsed.y + ' kg';
+                  }
+                }
+              }
             },
-            x: {
-              grid: { display: false },
-              ticks: { color: '#94a3b8', font: { size: 10 }, maxRotation: 45 }
+            scales: {
+              y: {
+                beginAtZero: false,
+                grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                ticks: { color: '#94a3b8', font: { size: 11 }, padding: 8 }
+              },
+              x: {
+                grid: { display: false },
+                ticks: { color: '#94a3b8', font: { size: 11 }, maxRotation: 0 }
+              }
+            },
+            layout: {
+              padding: { top: 10, right: 10, bottom: 0, left: 0 }
             }
           }
-        }
-      });
+        });
+      }
+    }
+    
+    if (!chartHasData) {
+      chartCard.style.display = "none";
     }
 
     if (appData.history.length === 0) {
