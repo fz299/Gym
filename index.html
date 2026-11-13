@@ -203,7 +203,7 @@
       font-size: 1rem;
     }
 
-    /* Set Rows (ohne Einzel-Haken) */
+    /* Set Rows & Warmup Stepper Row */
     .sets-container {
       margin-top: 14px;
       display: flex;
@@ -222,7 +222,20 @@
       border: 1px solid var(--border);
     }
 
-    .card.completed .set-row {
+    .warmup-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      align-items: center;
+      background: var(--bg-input);
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      margin-top: 12px;
+    }
+
+    .card.completed .set-row,
+    .card.completed .warmup-row {
       border-color: rgba(46, 125, 50, 0.45);
       background: rgba(46, 125, 50, 0.12);
     }
@@ -449,6 +462,26 @@
       align-items: center;
       gap: 8px;
     }
+
+    /* Default Status Box */
+    .default-box {
+      background: rgba(25, 118, 210, 0.1);
+      border: 1px solid rgba(25, 118, 210, 0.3);
+      border-radius: 12px;
+      padding: 12px;
+      margin-top: 14px;
+    }
+    .default-box-title {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #64b5f6;
+      margin-bottom: 4px;
+    }
+    .default-box-sub {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
   </style>
 </head>
 <body>
@@ -469,14 +502,39 @@
   <!-- TAB 1: AKTIVES TRAINING -->
   <div id="tab-workout" class="tab-content active">
 
-    <!-- 1. Aufwärmen -->
+    <!-- 1. Aufwärmen (Stufe & Zeit direkt anpassbar wie bei Übungen) -->
     <div class="card" id="warmupCard">
       <div class="flex-between">
         <div>
           <div class="exercise-title">Aufwärmen (Warm-up)</div>
-          <div class="muscle-tag" id="warmupDescDisplay">Synchro (Crosstrainer) · Stufe 14 · 10 Min.</div>
+          <div class="muscle-tag" id="warmupDeviceDisplay">Synchro (Crosstrainer)</div>
         </div>
         <button class="check-btn" id="warmupCheckBtn" onclick="toggleWarmup()">✓</button>
+      </div>
+      <div class="warmup-row">
+        <div class="stepper">
+          <button onclick="adjustWarmup('level', -1)">−</button>
+          <div class="stepper-input-wrap">
+            <div class="stepper-input-row">
+              <input type="number" step="1" min="1" class="stepper-input" id="warmupLevelInput" value="14"
+                onchange="setDirectWarmup('level', this.value)" />
+            </div>
+            <span class="stepper-label">Stufe</span>
+          </div>
+          <button onclick="adjustWarmup('level', 1)">+</button>
+        </div>
+        <div class="stepper">
+          <button onclick="adjustWarmup('minutes', -1)">−</button>
+          <div class="stepper-input-wrap">
+            <div class="stepper-input-row">
+              <input type="number" step="1" min="1" class="stepper-input" id="warmupMinutesInput" value="10"
+                onchange="setDirectWarmup('minutes', this.value)" />
+              <span class="stepper-unit">Min</span>
+            </div>
+            <span class="stepper-label">Zeit</span>
+          </div>
+          <button onclick="adjustWarmup('minutes', 1)">+</button>
+        </div>
       </div>
     </div>
 
@@ -517,24 +575,52 @@
   <!-- TAB 2: PLAN BEARBEITEN (DYNAMISCH) -->
   <div id="tab-plan" class="tab-content">
     <div class="card">
-      <div class="flex-between">
+      <div class="flex-between" style="flex-wrap:wrap;">
         <div>
           <h2 style="margin:0; font-size:1.1rem;">Dynamischer Trainingsplan</h2>
           <div class="muscle-tag">Geräte hinzufügen, sortieren & Einstellungen anpassen</div>
         </div>
         <button class="btn btn-primary btn-sm" onclick="openExerciseModal()">+ Gerät</button>
       </div>
+
+      <!-- Prominente Default-Verwaltung direkt im Plan-Editor -->
+      <div class="default-box">
+        <div class="default-box-title">Mein Standardplan (Default-Vorlage)</div>
+        <div class="default-box-sub" id="defaultStatusText">Noch kein eigener Default gespeichert (Ursprungsplan aktiv).</div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn btn-blue btn-sm" style="flex:1;" onclick="saveAsDefaultPlan()">💾 Aktuellen Plan als Default speichern</button>
+          <button class="btn btn-sm" style="flex:1;" onclick="resetToDefaultPlan()">↺ Default wiederherstellen</button>
+        </div>
+      </div>
     </div>
 
     <div class="card">
-      <label>Aufwärm-Notiz (wird nicht historisiert)</label>
-      <div style="display:flex; gap:8px;">
-        <input type="text" id="warmupInput" style="margin:0;" />
+      <label>Aufwärm-Gerät & Standardwerte</label>
+      <div style="display:flex; gap:8px; margin-bottom:8px;">
+        <input type="text" id="warmupInput" style="margin:0;" placeholder="z. B. Synchro (Crosstrainer)" />
         <button class="btn btn-blue btn-sm" onclick="saveWarmupSetting()">Speichern</button>
+      </div>
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+        <div>
+          <label>Aufwärm-Stufe</label>
+          <input type="number" id="planWarmupLevel" min="1" style="margin-bottom:0;" onchange="setDirectWarmup('level', this.value)" />
+        </div>
+        <div>
+          <label>Aufwärm-Zeit (Min.)</label>
+          <input type="number" id="planWarmupMinutes" min="1" style="margin-bottom:0;" onchange="setDirectWarmup('minutes', this.value)" />
+        </div>
       </div>
     </div>
 
     <div id="planEditorList"></div>
+
+    <!-- Zweiter Default-Speicher-Button ganz unten nach dem Bearbeiten der Geräte -->
+    <div class="card" style="text-align:center;">
+      <div class="muscle-tag" style="margin-bottom:10px;">Alle Änderungen an Geräten, Sitzeinstellungen & Reihenfolge fertig?</div>
+      <button class="btn btn-blue" style="width:100%;" onclick="saveAsDefaultPlan()">
+        💾 Aktuelle Einstellungen dauerhaft als Default speichern
+      </button>
+    </div>
   </div>
 
   <!-- TAB 3: HISTORIE (NUR GEWICHTE) -->
@@ -609,10 +695,11 @@
     </div>
 
     <hr style="border-color:var(--border); margin:18px 0;" />
-    <div style="font-size:0.85rem; font-weight:700; margin-bottom:8px;">Daten-Sicherung</div>
+    <div style="font-size:0.85rem; font-weight:700; margin-bottom:8px;">Standardplan (Default) & Sicherung</div>
     <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <button class="btn btn-sm btn-primary" onclick="saveAsDefaultPlan()">💾 Aktuellen Plan als Default speichern</button>
+      <button class="btn btn-sm btn-danger" onclick="resetToDefaultPlan()">↺ Mein Default wiederherstellen</button>
       <button class="btn btn-sm btn-blue" onclick="exportData()">JSON Exportieren</button>
-      <button class="btn btn-sm btn-danger" onclick="resetToDefaultPlan()">Standardplan wiederherstellen</button>
     </div>
   </div>
 </div>
@@ -638,7 +725,7 @@
   const DEFAULT_FIREBASE_URL = "https://dart-turnier-f94af-default-rtdb.firebaseio.com";
 
   // --- INITIALER PLAN AUS DEINEM GOOGLE DOC ---
-  const DEFAULT_EXERCISES = [
+  const INITIAL_EXERCISES = [
     { id: "ex_1", name: "Legpress", muscle: "Oberschenkel / Po", setting: "Sitz 5", sets: 3, defaultReps: 12, defaultWeight: 120 },
     { id: "ex_2", name: "Abductor", muscle: "Äußere Oberschenkel / Hüfte", setting: "Sitz 2", sets: 3, defaultReps: 12, defaultWeight: 50 },
     { id: "ex_3", name: "Adductor", muscle: "Innere Oberschenkel", setting: "Sitz 4", sets: 3, defaultReps: 12, defaultWeight: 45 },
@@ -653,8 +740,11 @@
 
   // --- STATE ---
   let appData = {
-    warmupNote: "Synchro (Crosstrainer) · Stufe 14 · 10 Min.",
-    exercises: JSON.parse(JSON.stringify(DEFAULT_EXERCISES)),
+    warmupDevice: "Synchro (Crosstrainer)",
+    warmupLevel: 14,
+    warmupMinutes: 10,
+    exercises: JSON.parse(JSON.stringify(INITIAL_EXERCISES)),
+    customDefault: null, // Speichert { savedAt, warmupDevice, warmupLevel, warmupMinutes, exercises }
     history: []
   };
 
@@ -673,16 +763,23 @@
     if (localSaved) {
       const parsed = JSON.parse(localSaved);
       if (parsed && Array.isArray(parsed.exercises) && parsed.exercises.length > 0) {
-        appData = parsed;
+        appData = {
+          warmupDevice: parsed.warmupDevice || "Synchro (Crosstrainer)",
+          warmupLevel: parsed.warmupLevel !== undefined ? parsed.warmupLevel : 14,
+          warmupMinutes: parsed.warmupMinutes !== undefined ? parsed.warmupMinutes : 10,
+          exercises: parsed.exercises,
+          customDefault: parsed.customDefault || null,
+          history: parsed.history || []
+        };
       }
     }
 
     document.getElementById("firebaseUrlInput").value = firebaseUrl;
     await pullFromFirebase();
 
-    // Sicherstellen, dass niemals ein leerer Plan angezeigt wird
     if (!Array.isArray(appData.exercises) || appData.exercises.length === 0) {
-      appData.exercises = JSON.parse(JSON.stringify(DEFAULT_EXERCISES));
+      const fallback = appData.customDefault ? appData.customDefault.exercises : INITIAL_EXERCISES;
+      appData.exercises = JSON.parse(JSON.stringify(fallback));
       await saveData();
     }
 
@@ -742,8 +839,14 @@
       if (res.ok) {
         const cloudData = await res.json();
         if (cloudData && Array.isArray(cloudData.exercises) && cloudData.exercises.length > 0) {
-          appData = cloudData;
-          if (!appData.history) appData.history = [];
+          appData = {
+            warmupDevice: cloudData.warmupDevice || "Synchro (Crosstrainer)",
+            warmupLevel: cloudData.warmupLevel !== undefined ? cloudData.warmupLevel : 14,
+            warmupMinutes: cloudData.warmupMinutes !== undefined ? cloudData.warmupMinutes : 10,
+            exercises: cloudData.exercises,
+            customDefault: cloudData.customDefault || null,
+            history: cloudData.history || []
+          };
           localStorage.setItem("rac_gym_data", JSON.stringify(appData));
         } else {
           if (cloudData && Array.isArray(cloudData.history)) {
@@ -767,6 +870,27 @@
     label.textContent = text;
   }
 
+  // --- WARMUP STUFE & ZEIT ANPASSEN ---
+  async function adjustWarmup(field, delta) {
+    if (field === "level") {
+      appData.warmupLevel = Math.max(1, (appData.warmupLevel || 14) + delta);
+    } else if (field === "minutes") {
+      appData.warmupMinutes = Math.max(1, (appData.warmupMinutes || 10) + delta);
+    }
+    renderAll();
+    await saveData();
+  }
+
+  async function setDirectWarmup(field, rawVal) {
+    const parsed = parseInt(rawVal);
+    if (!isNaN(parsed) && parsed >= 1) {
+      if (field === "level") appData.warmupLevel = parsed;
+      if (field === "minutes") appData.warmupMinutes = parsed;
+    }
+    renderAll();
+    await saveData();
+  }
+
   // --- HELPER: LETZTES TRAINING FÜR ÜBUNG FINDEN ---
   function getLastExerciseLog(exerciseId) {
     for (let i = 0; i < appData.history.length; i++) {
@@ -779,8 +903,10 @@
 
   // --- RENDER WORKOUT ---
   function renderWorkout() {
-    document.getElementById("warmupDescDisplay").textContent = appData.warmupNote;
-    document.getElementById("warmupInput").value = appData.warmupNote;
+    document.getElementById("warmupDeviceDisplay").textContent = appData.warmupDevice || "Synchro (Crosstrainer)";
+    document.getElementById("warmupInput").value = appData.warmupDevice || "Synchro (Crosstrainer)";
+    document.getElementById("warmupLevelInput").value = appData.warmupLevel;
+    document.getElementById("warmupMinutesInput").value = appData.warmupMinutes;
 
     const wBtn = document.getElementById("warmupCheckBtn");
     const wCard = document.getElementById("warmupCard");
@@ -941,8 +1067,22 @@
     alert("Training erfolgreich gespeichert! Deine neuen Gewichte sind in der Historie hinterlegt.");
   }
 
-  // --- DYNAMISCHER PLAN EDITOR ---
+  // --- DYNAMISCHER PLAN EDITOR & DEFAULT SPEICHERN ---
   function renderPlanEditor() {
+    const statusEl = document.getElementById("defaultStatusText");
+    if (appData.customDefault && Array.isArray(appData.customDefault.exercises)) {
+      const count = appData.customDefault.exercises.length;
+      const savedDate = appData.customDefault.savedAt ? ` (gespeichert am ${appData.customDefault.savedAt})` : "";
+      statusEl.textContent = `Eigener Default aktiv: ${count} Geräte${savedDate}`;
+      statusEl.style.color = "#a5d6a7";
+    } else {
+      statusEl.textContent = "Noch kein eigener Default gespeichert (Ursprungsplan aktiv).";
+      statusEl.style.color = "var(--text-muted)";
+    }
+
+    document.getElementById("planWarmupLevel").value = appData.warmupLevel;
+    document.getElementById("planWarmupMinutes").value = appData.warmupMinutes;
+
     const listEl = document.getElementById("planEditorList");
     listEl.innerHTML = "";
 
@@ -966,6 +1106,59 @@
       `;
       listEl.appendChild(card);
     });
+  }
+
+  async function saveAsDefaultPlan() {
+    appData.exercises.forEach(ex => {
+      const currentSets = activeSession.setsState[ex.id];
+      if (currentSets && currentSets.length > 0) {
+        ex.defaultWeight = currentSets[0].weight;
+        ex.defaultReps = currentSets[0].reps;
+      }
+    });
+
+    const now = new Date();
+    const savedAt = now.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })
+      + " " + now.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+
+    appData.customDefault = {
+      savedAt: savedAt,
+      warmupDevice: appData.warmupDevice,
+      warmupLevel: appData.warmupLevel,
+      warmupMinutes: appData.warmupMinutes,
+      exercises: JSON.parse(JSON.stringify(appData.exercises))
+    };
+
+    await saveData();
+    renderAll();
+    alert("Dein aktueller Plan (inkl. Reihenfolge, Aufwärm-Werten & Geräteeinstellungen) wurde fest als dein Standardplan (Default) gespeichert!");
+  }
+
+  async function resetToDefaultPlan() {
+    const hasCustom = appData.customDefault && Array.isArray(appData.customDefault.exercises) && appData.customDefault.exercises.length > 0;
+    const msg = hasCustom
+      ? "Deinen selbst gespeicherten Default-Plan wiederherstellen? (Deine Trainingshistorie bleibt erhalten.)"
+      : "Auf den ursprünglichen RAC-Plan zurücksetzen? (Du hast noch keinen eigenen Default gespeichert – Historie bleibt erhalten.)";
+
+    if (!confirm(msg)) return;
+
+    if (hasCustom) {
+      appData.warmupDevice = appData.customDefault.warmupDevice || "Synchro (Crosstrainer)";
+      appData.warmupLevel = appData.customDefault.warmupLevel !== undefined ? appData.customDefault.warmupLevel : 14;
+      appData.warmupMinutes = appData.customDefault.warmupMinutes !== undefined ? appData.customDefault.warmupMinutes : 10;
+      appData.exercises = JSON.parse(JSON.stringify(appData.customDefault.exercises));
+    } else {
+      appData.warmupDevice = "Synchro (Crosstrainer)";
+      appData.warmupLevel = 14;
+      appData.warmupMinutes = 10;
+      appData.exercises = JSON.parse(JSON.stringify(INITIAL_EXERCISES));
+    }
+
+    activeSession = { warmupDone: false, cardioDone: false, exerciseDone: {}, setsState: {} };
+    initActiveSession();
+    await saveData();
+    renderAll();
+    closeSettingsModal();
   }
 
   async function moveExercise(index, direction) {
@@ -1056,10 +1249,10 @@
   }
 
   async function saveWarmupSetting() {
-    appData.warmupNote = document.getElementById("warmupInput").value.trim();
+    appData.warmupDevice = document.getElementById("warmupInput").value.trim() || "Synchro (Crosstrainer)";
     await saveData();
-    renderWorkout();
-    alert("Aufwärm-Notiz aktualisiert.");
+    renderAll();
+    alert("Aufwärm-Gerät aktualisiert.");
   }
 
   // --- HISTORIE RENDERING (NUR GEWICHTE) ---
@@ -1165,16 +1358,6 @@
     a.href = url;
     a.download = `rac-gym-backup-${new Date().toISOString().slice(0,10)}.json`;
     a.click();
-  }
-
-  async function resetToDefaultPlan() {
-    if (!confirm("Aktuellen Plan auf deinen ursprünglichen RAC-Plan zurücksetzen? (Historie bleibt erhalten.)")) return;
-    appData.exercises = JSON.parse(JSON.stringify(DEFAULT_EXERCISES));
-    activeSession = { warmupDone: false, cardioDone: false, exerciseDone: {}, setsState: {} };
-    initActiveSession();
-    await saveData();
-    renderAll();
-    closeSettingsModal();
   }
 
   function renderAll() {
