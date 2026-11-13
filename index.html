@@ -241,13 +241,18 @@
 
     .set-row {
       display: grid;
-      grid-template-columns: 32px 1fr 1fr;
+      grid-template-columns: 32px 1fr 1fr 44px;
       gap: 8px;
       align-items: center;
       background: var(--bg-input);
       padding: 8px 10px;
       border-radius: 10px;
       border: 1px solid var(--border);
+    }
+    
+    .set-row.done {
+      border-color: rgba(46, 125, 50, 0.45);
+      background: rgba(46, 125, 50, 0.12);
     }
 
     .warmup-row {
@@ -988,7 +993,8 @@
           const prevSet = lastWeights && lastWeights.sets[i] ? lastWeights.sets[i] : null;
           arr.push({
             weight: prevSet ? prevSet.weight : ex.defaultWeight,
-            reps: prevSet ? prevSet.reps : ex.defaultReps
+            reps: prevSet ? prevSet.reps : ex.defaultReps,
+            done: false
           });
         }
         activeSession.setsState[ex.id] = arr;
@@ -1112,7 +1118,7 @@
 
     appData.exercises.forEach((ex, idx) => {
       const sets = activeSession.setsState[ex.id] || [];
-      const isExDone = !!activeSession.exerciseDone[ex.id];
+      const isExDone = sets.length > 0 && sets.every(s => s.done);
       const lastLog = getLastExerciseLog(ex.id);
       const lastText = lastLog
         ? `Letztes Mal (${lastLog.date}): ` + lastLog.sets.map(s => `${s.weight}kg × ${s.reps}`).join(" | ")
@@ -1121,7 +1127,7 @@
       let setsHtml = "";
       sets.forEach((s, sIdx) => {
         setsHtml += `
-          <div class="set-row">
+          <div class="set-row ${s.done ? 'done' : ''}">
             <div class="set-num">#${sIdx + 1}</div>
             <div class="stepper">
               <button onclick="adjustSet('${ex.id}', ${sIdx}, 'weight', -1)">−</button>
@@ -1146,6 +1152,7 @@
               </div>
               <button onclick="adjustSet('${ex.id}', ${sIdx}, 'reps', 1)">+</button>
             </div>
+            <button class="check-btn ${s.done ? 'checked' : ''}" onclick="toggleSetDone('${ex.id}', ${sIdx})">✓</button>
           </div>
         `;
       });
@@ -1199,8 +1206,15 @@
     renderWorkout();
   }
 
+  function toggleSetDone(exId, setIdx) {
+    activeSession.setsState[exId][setIdx].done = !activeSession.setsState[exId][setIdx].done;
+    renderWorkout();
+  }
+
   function toggleExerciseDone(exId) {
-    activeSession.exerciseDone[exId] = !activeSession.exerciseDone[exId];
+    const sets = activeSession.setsState[exId] || [];
+    const allDone = sets.every(s => s.done);
+    sets.forEach(s => s.done = !allDone);
     renderWorkout();
   }
 
@@ -1224,15 +1238,16 @@
   async function finishWorkout() {
     const logs = [];
     appData.exercises.forEach(ex => {
-      if (activeSession.exerciseDone[ex.id]) {
-        const sets = activeSession.setsState[ex.id] || [];
+      const sets = activeSession.setsState[ex.id] || [];
+      const doneSets = sets.filter(s => s.done).map(s => ({
+        weight: s.weight,
+        reps: s.reps
+      }));
+      if (doneSets.length > 0) {
         logs.push({
           exerciseId: ex.id,
           name: ex.name,
-          sets: sets.map(s => ({
-            weight: s.weight,
-            reps: s.reps
-          }))
+          sets: doneSets
         });
       }
     });
