@@ -456,6 +456,26 @@
       font-size: 1.15rem;
     }
 
+
+    .floating-workout-actions {
+      position: fixed;
+      bottom: 80px; /* Above bottom nav */
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: 680px;
+      padding: 0 16px;
+      display: flex;
+      gap: 10px;
+      z-index: 45;
+    }
+    .floating-workout-actions .btn {
+      flex: 1;
+      padding: 12px 10px;
+      font-size: 0.95rem;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.6);
+      border: 1px solid rgba(255,255,255,0.1);
+    }
     /* Bottom Navigation */
     nav.bottom-nav {
       position: fixed;
@@ -563,7 +583,7 @@
       <div class="sync-dot" id="syncDot"></div>
       <span id="syncText">Verbinde...</span>
     </div>
-    <div style="font-size: 0.65rem; color: var(--text-muted); font-weight: 600; letter-spacing: 0.5px; opacity: 0.8;">v1.5</div>
+    <div style="font-size: 0.65rem; color: var(--text-muted); font-weight: 600; letter-spacing: 0.5px; opacity: 0.8;">v1.6</div>
   </div>
 </header>
 
@@ -572,9 +592,8 @@
   <!-- TAB 1: AKTIVES TRAINING -->
   <div id="tab-workout" class="tab-content active">
 
-    <div class="flex-between" style="margin-bottom: 14px; align-items: center;">
+    <div style="margin-bottom: 14px;">
       <h2 style="margin:0; font-size:1.15rem;">Dein Workout</h2>
-      <button class="btn btn-sm btn-blue" id="masterCheckBtn" onclick="toggleAllWorkoutDone()">Alles abhaken ✓</button>
     </div>
 
     <!-- 1. Aufwärmen (Stufe & Zeit direkt anpassbar wie bei Übungen) -->
@@ -656,10 +675,14 @@
       </div>
     </div>
 
-    <!-- Training abschließen -->
-    <button class="btn btn-primary" style="width:100%; padding:14px; font-size:1rem; margin-top:6px;" onclick="finishWorkout()">
-      Training abschließen & Gewichte speichern
-    </button>
+    <!-- Floating Actions -->
+    <div class="floating-workout-actions">
+      <button class="btn btn-blue" id="masterCheckBtn" onclick="toggleAllWorkoutDone()">Alles abhaken ✓</button>
+      <button class="btn btn-primary" onclick="finishWorkout()">Workout speichern</button>
+    </div>
+    
+    <!-- Spacer damit die letzte Karte nicht verdeckt wird -->
+    <div style="height: 70px;"></div>
   </div>
 
   <!-- TAB 2: PLAN BEARBEITEN (DYNAMISCH) -->
@@ -1169,12 +1192,12 @@
     if (masterBtn) {
       if (allDone) {
         masterBtn.innerHTML = "Alles abwählen ✕";
-        masterBtn.className = "btn btn-sm";
+        masterBtn.className = "btn";
         masterBtn.style.background = "var(--bg-card-hover)";
         masterBtn.style.color = "var(--text-muted)";
       } else {
         masterBtn.innerHTML = "Alles abhaken ✓";
-        masterBtn.className = "btn btn-sm btn-blue";
+        masterBtn.className = "btn btn-blue";
         masterBtn.style.background = "";
         masterBtn.style.color = "";
       }
