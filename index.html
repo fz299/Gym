@@ -583,7 +583,7 @@
       <div class="sync-dot" id="syncDot"></div>
       <span id="syncText">Verbinde...</span>
     </div>
-    <div style="font-size: 0.65rem; color: var(--text-muted); font-weight: 600; letter-spacing: 0.5px; opacity: 0.8;">v1.6</div>
+    <div style="font-size: 0.65rem; color: var(--text-muted); font-weight: 600; letter-spacing: 0.5px; opacity: 0.8;">v1.7</div>
   </div>
 </header>
 
@@ -738,21 +738,13 @@
 
   <!-- TAB 3: HISTORIE (NUR GEWICHTE) -->
   <div id="tab-history" class="tab-content">
-    <div class="card">
-      <h2 style="margin:0 0 6px 0; font-size:1.1rem;">Trainings-Historie</h2>
-      <div class="muscle-tag">Protokolliert werden ausschließlich Datum, Gewichte & Wiederholungen – keine Geräteeinstellungen.</div>
-    </div>
-
-    <div class="card">
-      <label>Fortschritt nach Gerät filtern</label>
-      <select id="historyFilter" onchange="renderHistory()" style="margin-bottom:0;">
-        <option value="ALL">Alle absolvierten Trainings anzeigen</option>
-      </select>
-    </div>
-    
-    <div class="card" id="chartCard" style="display:none; padding:12px;">
-      <div id="chartTitle" style="font-size:0.85rem; font-weight:700; color:var(--text-muted); margin-bottom:8px; text-align:center;">Gewichts-Trend (Max. kg)</div>
-      <div style="position: relative; height: 220px; width: 100%;">
+    <div class="card" id="mainHistoryCard">
+      <h2 style="margin:0 0 6px 0; font-size:1.1rem;">Trainings-Historie & Trend</h2>
+      <div class="muscle-tag" style="margin-bottom:14px;">Klicke auf die Übungen, um sie im Chart & in der Liste ein-/auszublenden. X- und Y-Achsen skalieren sich automatisch.</div>
+      
+      <div id="historyToggles" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:16px;"></div>
+      
+      <div style="position: relative; height: 260px; width: 100%;">
         <canvas id="trendCanvas"></canvas>
       </div>
     </div>
@@ -1616,124 +1608,188 @@
 
   // --- HISTORIE RENDERING (NUR GEWICHTE) ---
   let trendChart = null;
+  let activeHistoryFilters = new Set();
+  let historyFiltersInitialized = false;
+
+  const CHART_COLORS = [
+    '#64b5f6', '#4ade80', '#fbbf24', '#f87171', '#c084fc',
+    '#34d399', '#f472b6', '#fb923c', '#818cf8', '#a3e635'
+  ];
+
   function renderHistory() {
-    const filterEl = document.getElementById("historyFilter");
-    const currentFilter = filterEl.value;
-
-    const knownExercises = new Map();
-    appData.exercises.forEach(e => knownExercises.set(e.id, e.name));
-    appData.history.forEach(h => h.logs.forEach(l => knownExercises.set(l.exerciseId, l.name)));
-
-    filterEl.innerHTML = `<option value="ALL">Alle absolvierten Trainings (${appData.history.length})</option>`;
-    knownExercises.forEach((name, id) => {
-      const opt = document.createElement("option");
-      opt.value = id;
-      opt.textContent = name;
-      if (id === currentFilter) opt.selected = true;
-      filterEl.appendChild(opt);
-    });
-
+    const mainCard = document.getElementById("mainHistoryCard");
     const listEl = document.getElementById("historyList");
-    listEl.innerHTML = "";
-    
-    const chartCard = document.getElementById("chartCard");
-    let chartHasData = false;
 
-    if (currentFilter !== "ALL" && appData.history.length > 0) {
-      const dates = [];
-      const weights = [];
-      let exName = "";
-      
-      const chronological = [...appData.history].reverse();
-      
-      chronological.forEach(session => {
-        const log = session.logs.find(l => l.exerciseId === currentFilter);
-        if (log && log.sets && log.sets.length > 0) {
-          exName = log.name;
-          const shortDate = session.date.split(" ")[0].substring(0, 5); // Zeigt z.B. 13.11.
-          dates.push(shortDate);
-          const maxW = Math.max(...log.sets.map(s => s.weight));
-          weights.push(maxW);
-        }
-      });
-      
-      if (weights.length > 0) {
-        chartHasData = true;
-        chartCard.style.display = "block";
-        document.getElementById("chartTitle").textContent = `Gewichts-Trend: ${exName} (Max. kg)`;
-        
-        if (trendChart) trendChart.destroy();
-        
-        const ctx = document.getElementById("trendCanvas").getContext("2d");
-        trendChart = new Chart(ctx, {
-          type: 'line',
-          data: {
-            labels: dates,
-            datasets: [{
-              label: 'Maximalgewicht (kg)',
-              data: weights,
-              borderColor: '#64b5f6',
-              backgroundColor: 'rgba(100, 181, 246, 0.15)',
-              borderWidth: 2.5,
-              pointBackgroundColor: '#1976d2',
-              pointBorderColor: '#64b5f6',
-              pointRadius: 5,
-              pointHoverRadius: 7,
-              fill: true,
-              tension: 0.3
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-              legend: { display: false },
-              tooltip: {
-                backgroundColor: 'rgba(30, 38, 48, 0.9)',
-                titleFont: { size: 13 },
-                bodyFont: { size: 14, weight: 'bold' },
-                displayColors: false,
-                callbacks: {
-                  label: function(context) {
-                    return context.parsed.y + ' kg';
-                  }
-                }
-              }
-            },
-            scales: {
-              y: {
-                beginAtZero: false,
-                grid: { color: 'rgba(255, 255, 255, 0.05)' },
-                ticks: { color: '#94a3b8', font: { size: 11 }, padding: 8 }
-              },
-              x: {
-                grid: { display: false },
-                ticks: { color: '#94a3b8', font: { size: 11 }, maxRotation: 0 }
-              }
-            },
-            layout: {
-              padding: { top: 10, right: 10, bottom: 0, left: 0 }
-            }
-          }
-        });
-      }
-    }
-    
-    if (!chartHasData) {
-      chartCard.style.display = "none";
-    }
-
-    if (appData.history.length === 0) {
+    if (!appData.history || appData.history.length === 0) {
+      if (mainCard) mainCard.style.display = "none";
       listEl.innerHTML = `<div class="card"><div class="muscle-tag">Noch keine Trainings gespeichert. Schließe dein erstes Workout im Reiter „Training“ ab!</div></div>`;
       return;
     }
 
-    appData.history.forEach(session => {
-      const matchingLogs = currentFilter === "ALL"
-        ? session.logs
-        : session.logs.filter(l => l.exerciseId === currentFilter);
+    if (mainCard) mainCard.style.display = "block";
 
-      if (currentFilter !== "ALL" && matchingLogs.length === 0) return;
+    // 1. Gather all exercises that have ANY data in history
+    const exercisesWithData = new Map();
+    appData.history.forEach(session => {
+      session.logs.forEach(log => {
+        if (!exercisesWithData.has(log.exerciseId)) {
+          exercisesWithData.set(log.exerciseId, log.name);
+        }
+      });
+    });
+
+    // Initialize filters on first load (show all)
+    if (!historyFiltersInitialized) {
+      exercisesWithData.forEach((name, id) => activeHistoryFilters.add(id));
+      historyFiltersInitialized = true;
+    }
+
+    renderHistoryChart(exercisesWithData);
+    renderHistoryToggles(exercisesWithData);
+    renderHistoryList();
+  }
+
+  function renderHistoryChart(exercisesMap) {
+    const dates = [];
+    const chronological = [...appData.history].reverse();
+    chronological.forEach(s => dates.push(s.date.split(" ")[0].substring(0, 5)));
+
+    const datasets = [];
+    let colorIdx = 0;
+
+    exercisesMap.forEach((name, id) => {
+      const data = chronological.map(session => {
+        const log = session.logs.find(l => l.exerciseId === id);
+        return (log && log.sets && log.sets.length > 0) ? Math.max(...log.sets.map(s => s.weight)) : null;
+      });
+
+      const color = CHART_COLORS[colorIdx % CHART_COLORS.length];
+      colorIdx++;
+
+      datasets.push({
+        label: name,
+        exerciseId: id,
+        data: data,
+        borderColor: color,
+        backgroundColor: color + '22',
+        borderWidth: 2.5,
+        pointBackgroundColor: '#1e2630',
+        pointBorderColor: color,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        fill: false,
+        spanGaps: true,
+        hidden: !activeHistoryFilters.has(id)
+      });
+    });
+
+    if (trendChart) {
+      trendChart.data.labels = dates;
+      trendChart.data.datasets = datasets;
+      trendChart.update();
+    } else {
+      const ctx = document.getElementById("trendCanvas").getContext("2d");
+      trendChart = new Chart(ctx, {
+        type: 'line',
+        data: { labels: dates, datasets: datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: 'rgba(30, 38, 48, 0.95)',
+              titleFont: { size: 12 },
+              bodyFont: { size: 13, weight: 'bold' },
+              padding: 10,
+              boxPadding: 4,
+              usePointStyle: true,
+              callbacks: {
+                label: function(context) {
+                  return context.dataset.label + ': ' + context.parsed.y + ' kg';
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: false,
+              grid: { color: 'rgba(255, 255, 255, 0.05)' },
+              ticks: { color: '#94a3b8', font: { size: 11 }, padding: 8 }
+            },
+            x: {
+              grid: { display: false },
+              ticks: { color: '#94a3b8', font: { size: 11 }, maxRotation: 0 }
+            }
+          },
+          interaction: {
+            mode: 'index',
+            intersect: false,
+          },
+          layout: {
+            padding: { top: 10, right: 10, bottom: 0, left: 0 }
+          }
+        }
+      });
+    }
+  }
+
+  function renderHistoryToggles(exercisesMap) {
+    const container = document.getElementById("historyToggles");
+    if(!container) return;
+    container.innerHTML = "";
+    
+    if(!trendChart) return;
+    const datasets = trendChart.data.datasets;
+
+    datasets.forEach(ds => {
+      const btn = document.createElement("button");
+      const isActive = activeHistoryFilters.has(ds.exerciseId);
+      
+      btn.style.border = `1px solid ${ds.borderColor}`;
+      btn.style.borderRadius = "20px";
+      btn.style.padding = "5px 12px";
+      btn.style.fontSize = "0.78rem";
+      btn.style.fontWeight = "600";
+      btn.style.cursor = "pointer";
+      btn.style.transition = "all 0.2s ease";
+      
+      if (isActive) {
+        btn.style.backgroundColor = ds.borderColor;
+        btn.style.color = "#11161d"; // dark text for contrast
+      } else {
+        btn.style.backgroundColor = "transparent";
+        btn.style.color = ds.borderColor;
+      }
+      
+      btn.innerText = ds.label;
+      
+      btn.onclick = () => {
+        if (activeHistoryFilters.has(ds.exerciseId)) {
+          activeHistoryFilters.delete(ds.exerciseId);
+        } else {
+          activeHistoryFilters.add(ds.exerciseId);
+        }
+        
+        ds.hidden = !activeHistoryFilters.has(ds.exerciseId);
+        trendChart.update(); // Smoothly animates axis changes!
+        
+        renderHistoryToggles(exercisesMap);
+        renderHistoryList();
+      };
+      
+      container.appendChild(btn);
+    });
+  }
+
+  function renderHistoryList() {
+    const listEl = document.getElementById("historyList");
+    listEl.innerHTML = "";
+
+    appData.history.forEach(session => {
+      const matchingLogs = session.logs.filter(l => activeHistoryFilters.has(l.exerciseId));
+
+      if (activeHistoryFilters.size > 0 && matchingLogs.length === 0) return;
 
       let logsHtml = "";
       matchingLogs.forEach(log => {
@@ -1756,7 +1812,7 @@
             <button class="btn btn-sm btn-danger" onclick="deleteHistoryEntry('${session.id}')">Löschen</button>
           </div>
         </div>
-        ${session.cardio && currentFilter === "ALL" ? `<div class="muscle-tag" style="margin-bottom:8px;">🏃 Cardio: ${session.cardio}</div>` : ""}
+        ${session.cardio ? `<div class="muscle-tag" style="margin-bottom:8px;">🏃 Cardio: ${session.cardio}</div>` : ""}
         ${logsHtml}
       `;
       listEl.appendChild(card);
