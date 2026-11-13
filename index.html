@@ -563,7 +563,7 @@
       <div class="sync-dot" id="syncDot"></div>
       <span id="syncText">Verbinde...</span>
     </div>
-    <div style="font-size: 0.65rem; color: var(--text-muted); font-weight: 600; letter-spacing: 0.5px; opacity: 0.8;">v1.3</div>
+    <div style="font-size: 0.65rem; color: var(--text-muted); font-weight: 600; letter-spacing: 0.5px; opacity: 0.8;">v1.5</div>
   </div>
 </header>
 
@@ -1117,20 +1117,13 @@
     label.textContent = text;
   }
 
-  async function forceSync() {
-    if (!firebaseUrl) {
-      alert("Bitte zuerst eine Firebase-URL eintragen (Klick auf 'Lokal').");
-      return;
-    }
+  function forceSync() {
     const btn = document.querySelector('.header-refresh-btn');
     if (btn) btn.classList.add('spin');
-    setSyncStatus(false, "Lade...");
-    
-    await pullFromFirebase();
-    initActiveSession();
-    renderAll();
-    
-    if (btn) btn.classList.remove('spin');
+    // Kurze Verzögerung für die Animation, dann echter Seiten-Reload
+    setTimeout(() => {
+      window.location.reload();
+    }, 250);
   }
 
   // --- WARMUP STUFE & ZEIT ANPASSEN ---
