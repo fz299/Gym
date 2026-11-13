@@ -572,6 +572,11 @@
   <!-- TAB 1: AKTIVES TRAINING -->
   <div id="tab-workout" class="tab-content active">
 
+    <div class="flex-between" style="margin-bottom: 14px; align-items: center;">
+      <h2 style="margin:0; font-size:1.15rem;">Dein Workout</h2>
+      <button class="btn btn-sm btn-blue" id="masterCheckBtn" onclick="toggleAllWorkoutDone()">Alles abhaken ✓</button>
+    </div>
+
     <!-- 1. Aufwärmen (Stufe & Zeit direkt anpassbar wie bei Übungen) -->
     <div class="card" id="warmupCard">
       <div class="flex-between">
@@ -1159,6 +1164,27 @@
 
   // --- RENDER WORKOUT ---
   function renderWorkout() {
+    let allDone = appData.activeSession.warmupDone && appData.activeSession.cardioDone;
+    appData.exercises.forEach(ex => {
+      const sets = (appData.activeSession.setsState && appData.activeSession.setsState[ex.id]) ? appData.activeSession.setsState[ex.id] : [];
+      if (sets.length === 0 || !sets.every(s => s.done)) allDone = false;
+    });
+    
+    const masterBtn = document.getElementById("masterCheckBtn");
+    if (masterBtn) {
+      if (allDone) {
+        masterBtn.innerHTML = "Alles abwählen ✕";
+        masterBtn.className = "btn btn-sm";
+        masterBtn.style.background = "var(--bg-card-hover)";
+        masterBtn.style.color = "var(--text-muted)";
+      } else {
+        masterBtn.innerHTML = "Alles abhaken ✓";
+        masterBtn.className = "btn btn-sm btn-blue";
+        masterBtn.style.background = "";
+        masterBtn.style.color = "";
+      }
+    }
+
     document.getElementById("warmupDeviceDisplay").textContent = appData.warmupDevice || "Synchro (Crosstrainer)";
     document.getElementById("warmupInput").value = appData.warmupDevice || "Synchro (Crosstrainer)";
     document.getElementById("warmupLevelInput").value = appData.warmupLevel;
@@ -1285,6 +1311,26 @@
     const allDone = sets.every(s => s.done);
     sets.forEach(s => s.done = !allDone);
     renderWorkout();
+    await saveData();
+  }
+
+  async function toggleAllWorkoutDone() {
+    let allDone = appData.activeSession.warmupDone && appData.activeSession.cardioDone;
+    appData.exercises.forEach(ex => {
+      const sets = (appData.activeSession.setsState && appData.activeSession.setsState[ex.id]) ? appData.activeSession.setsState[ex.id] : [];
+      if (sets.length === 0 || !sets.every(s => s.done)) allDone = false;
+    });
+
+    const newState = !allDone;
+    appData.activeSession.warmupDone = newState;
+    appData.activeSession.cardioDone = newState;
+    
+    appData.exercises.forEach(ex => {
+      const sets = (appData.activeSession.setsState && appData.activeSession.setsState[ex.id]) ? appData.activeSession.setsState[ex.id] : [];
+      sets.forEach(s => s.done = newState);
+    });
+
+    renderAll();
     await saveData();
   }
 
